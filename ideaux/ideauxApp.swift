@@ -14,6 +14,6 @@ struct ideauxApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [IdeaNode.self, IdeaProject.self, IdeaLink.self])
+        .modelContainer(for: [IdeaCollection.self, IdeaProject.self, IdeaNode.self])
     }
 }
