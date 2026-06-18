@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \IdeaCollection.name) private var collections: [IdeaCollection]
     @State private var showingNewCollection = false
+    @State private var showingImportTree = false
 
     var body: some View {
         NavigationStack {
@@ -41,14 +42,26 @@ struct ContentView: View {
             }
             .navigationTitle("ideauX")
             .toolbar {
-                Button {
-                    addSampleCollection()
+                Menu {
+                    Button {
+                        addSampleCollection()
+                    } label: {
+                        Label("New Collection", systemImage: "plus")
+                    }
+                    Button {
+                        showingImportTree = true
+                    } label: {
+                        Label("Import Tree", systemImage: "tray.and.arrow.down")
+                    }
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Actions", systemImage: "ellipsis.circle")
                 }
             }
             .onAppear {
                 seedCollectionsIfNeeded()
+            }
+            .sheet(isPresented: $showingImportTree) {
+                ImportTreeSheet()
             }
         }
     }
@@ -105,7 +118,4 @@ struct ContentView: View {
         }
     }
 }
-
-
-
 

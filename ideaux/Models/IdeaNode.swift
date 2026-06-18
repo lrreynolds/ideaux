@@ -10,17 +10,32 @@ final class IdeaNode {
     var title: String
     var refinedText: String
     var summary: String
-    var tagsText: String
-    // status as String: seed, growing, archived
+    // Outliner fields
+    var nodeType: String // convention: idea, question, task, decision, implementation, evidence, project, observation
+    var priority: String // convention: low, normal, high
+    // status as String (by convention): seed, exploring, refining, actionable, implemented, validated, rejected, archived
     var status: String
 
     // Future AI-generated fields
     var nextQuestionsText: String
     var exportPromptText: String
 
+    // Lifecycle / implementation
+    var implementedAt: Date?
+
+    // Simple parent support (no inverse children array for now)
+    // parentID is used for reliable outline rendering/import.
+    // The SwiftData parent relationship can remain as a convenience reference.
+    var parentID: UUID?
+    var parent: IdeaNode?
+
     // Relationships
+    var collectionID: UUID?
     var collection: IdeaCollection?
     var project: IdeaProject?
+
+    var tagsText: String
+    var sortOrder: Int
 
     init(
         id: UUID = UUID(),
@@ -30,12 +45,19 @@ final class IdeaNode {
         title: String = "",
         refinedText: String = "",
         summary: String = "",
-        tagsText: String = "",
+        nodeType: String = "idea",
+        priority: String = "normal",
         status: String = "seed",
         nextQuestionsText: String = "",
         exportPromptText: String = "",
+        implementedAt: Date? = nil,
+        parentID: UUID? = nil,
+        parent: IdeaNode? = nil,
+        collectionID: UUID? = nil,
         collection: IdeaCollection? = nil,
-        project: IdeaProject? = nil
+        project: IdeaProject? = nil,
+        tagsText: String = "",
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -44,11 +66,18 @@ final class IdeaNode {
         self.title = title
         self.refinedText = refinedText
         self.summary = summary
-        self.tagsText = tagsText
+        self.nodeType = nodeType
+        self.priority = priority
         self.status = status
         self.nextQuestionsText = nextQuestionsText
         self.exportPromptText = exportPromptText
+        self.implementedAt = implementedAt
+        self.parentID = parentID
+        self.parent = parent
+        self.collectionID = collectionID
         self.collection = collection
         self.project = project
+        self.tagsText = tagsText
+        self.sortOrder = sortOrder
     }
 }

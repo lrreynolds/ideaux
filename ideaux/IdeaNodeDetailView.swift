@@ -15,6 +15,9 @@ struct IdeaNodeDetailView: View {
     let node: IdeaNode
     let collection: IdeaCollection
 
+    @State private var showingAddChild = false
+    @State private var childCaptureText = ""
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -83,6 +86,15 @@ struct IdeaNodeDetailView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
+                Button {
+                    showingAddChild = true
+                } label: {
+                    Label("Add Child Node", systemImage: "plus.rectangle.on.folder")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
                 Button(role: .destructive) {
                     modelContext.delete(node)
                     try? modelContext.save()
@@ -97,13 +109,61 @@ struct IdeaNodeDetailView: View {
         }
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingAddChild) {
+            NavigationStack {
+                Form {
+                    Section("Child Node") {
+                        TextEditor(text: $childCaptureText)
+                            .frame(minHeight: 160)
+                    }
+                }
+                .navigationTitle("Add Child Node")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            childCaptureText = ""
+                            showingAddChild = false
+                        }
+                    }
+
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            let text = childCaptureText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !text.isEmpty else { return }
+
+                            let child = IdeaNode(rawCapture: text)
+                            child.title = String(text.prefix(60))
+                            child.refinedText = text
+                            child.status = "seed"
+                            child.nodeType = "idea"
+                            child.collectionID = collection.id
+                            child.collection = collection
+                            child.parentID = node.id
+                            child.parent = node
+
+                            modelContext.insert(child)
+                            try? modelContext.save()
+
+                            childCaptureText = ""
+                            showingAddChild = false
+                        }
+                        .disabled(childCaptureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
     }
 
     private var statusLabel: String {
-        switch node.status {
+        switch node.status.lowercased() {
         case "seed": "🌱 Seed"
-        case "growing": "🌿 Growing"
-        case "archived": "🗄 Archived"
+        case "exploring": "🔎 Exploring"
+        case "refining", "growing": "🌿 Refining"
+        case "actionable": "● Actionable"
+        case "implemented": "✓ Implemented"
+        case "validated": "★ Validated"
+        case "rejected": "✕ Rejected"
+        case "archived": "📦 Archived"
         default: node.status.capitalized
         }
     }
@@ -111,7 +171,7 @@ struct IdeaNodeDetailView: View {
     private func refineIdea() {
         let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        node.status = "growing"
+        node.status = "refining"
         node.updatedAt = Date()
         node.title = String(raw.prefix(60))
         node.refinedText = raw
@@ -180,6 +240,7 @@ struct IdeaNodeDetailView: View {
                 nextQuestionsText: ""
             )
             
+            mockNode.collectionID = mockCollection.id
             mockNode.collection = mockCollection
             container.mainContext.insert(mockCollection)
             container.mainContext.insert(mockNode)
