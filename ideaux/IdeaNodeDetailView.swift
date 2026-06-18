@@ -55,20 +55,27 @@ struct IdeaNodeDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
-                        Button {
-                            setStatus("implemented")
-                        } label: {
-                            Label("Mark Implemented", systemImage: "checkmark.circle")
-                                .frame(maxWidth: .infinity)
+                        if node.status != "implemented" {
+                            Button {
+                                setStatus("implemented")
+                            } label: {
+                                Label("Mark Implemented", systemImage: "checkmark.circle")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
-                        Button {
-                            setStatus("validated")
-                        } label: {
-                            Label("Mark Validated", systemImage: "star")
-                                .frame(maxWidth: .infinity)
+
+                        if node.status != "validated" {
+                            Button {
+                                setStatus("validated")
+                            } label: {
+                                Label("Mark Validated", systemImage: "star")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
+                   
+                  
                     }
                 }
 

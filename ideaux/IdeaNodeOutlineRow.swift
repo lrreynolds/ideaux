@@ -58,7 +58,11 @@ struct IdeaNodeOutlineRow: View {
                         .foregroundColor(.primary)
                 }
                 HStack(spacing: 8) {
-                    Text(node.nodeType.capitalized)
+                    Group{
+                        Text(node.nodeType.capitalized)
+                        Text("•")
+                        Text(node.status.capitalized)
+                    }
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if node.priority.lowercased() == "high" {
