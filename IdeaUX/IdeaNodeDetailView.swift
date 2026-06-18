@@ -11,12 +11,16 @@ import SwiftData
 struct IdeaNodeDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    
+    @Query(sort: \IdeaNode.createdAt, order: .reverse) private var allIdeas: [IdeaNode]
 
     let node: IdeaNode
     let collection: IdeaCollection
 
     @State private var showingAddChild = false
     @State private var childCaptureText = ""
+    @State private var showingModelResult = false
+    @State private var modelResult = ""
 
     var body: some View {
         ScrollView {
@@ -38,7 +42,7 @@ struct IdeaNodeDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 GroupBox("Status") {
                     VStack(alignment: .leading, spacing: 12) {
                         Menu {
@@ -55,6 +59,7 @@ struct IdeaNodeDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+
                         if node.status != "implemented" {
                             Button {
                                 setStatus("implemented")
@@ -74,8 +79,6 @@ struct IdeaNodeDetailView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                   
-                  
                     }
                 }
 
@@ -98,6 +101,7 @@ struct IdeaNodeDetailView: View {
                     Text(node.summary.isEmpty ? "No summary yet." : node.summary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
                 GroupBox("Next Questions") {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(
@@ -106,7 +110,6 @@ struct IdeaNodeDetailView: View {
                                 .map(String.init),
                             id: \.self
                         ) { question in
-
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "questionmark.circle")
                                     .foregroundStyle(.secondary)
@@ -124,6 +127,17 @@ struct IdeaNodeDetailView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Button {
+                    Task {
+                        await testFoundationModel()
+                    }
+                } label: {
+                    Label("Test Foundation Model", systemImage: "flask")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
                 .controlSize(.large)
 
                 Button {
@@ -149,6 +163,24 @@ struct IdeaNodeDetailView: View {
         }
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingModelResult) {
+            NavigationStack {
+                ScrollView {
+                    Text(modelResult)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .navigationTitle("Model Output")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            showingModelResult = false
+                        }
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingAddChild) {
             NavigationStack {
                 Form {
@@ -207,7 +239,7 @@ struct IdeaNodeDetailView: View {
         default: node.status.capitalized
         }
     }
-    
+
     private func setStatus(_ status: String) {
         node.status = status
         node.updatedAt = Date()
@@ -215,6 +247,45 @@ struct IdeaNodeDetailView: View {
             node.implementedAt = Date()
         }
         try? modelContext.save()
+    }
+
+    private func testFoundationModel() async {
+        await MainActor.run {
+            modelResult = "Running Foundation Model test…"
+            showingModelResult = true
+        }
+
+        do {
+            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+            let snapshot = IdeaContextBuilder.snapshot(
+                collection: collection,
+                node: node,
+                allNodes: collectionIdeas
+            )
+
+            let prompt = IdeaPromptBuilder.refinementPrompt(
+                for: snapshot,
+                rawInput: node.rawCapture
+            )
+
+            let result = try await FoundationModelIdeaRefiner()
+                .refine(prompt: prompt)
+
+            let trimmedResult = result.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            await MainActor.run {
+                if trimmedResult.isEmpty {
+                    modelResult = "EMPTY MODEL RESPONSE\n\nThe Foundation Model call completed but returned no visible text.\n\nPrompt sent:\n\n\(prompt)"
+                } else {
+                    modelResult = trimmedResult
+                }
+            }
+        } catch {
+            await MainActor.run {
+                modelResult = "ERROR:\n\n\(error.localizedDescription)"
+            }
+        }
     }
 
     private func refineIdea() {
@@ -250,56 +321,53 @@ struct IdeaNodeDetailView: View {
     }
 }
 
+#Preview("Idea Detail") {
+    PreviewIdeaNodeDetail()
+}
 
-    
-    #Preview("Idea Detail") {
-        PreviewIdeaNodeDetail()
-    }
-    
-    struct PreviewIdeaNodeDetail: View {
-        let container: ModelContainer
-        let mockCollection: IdeaCollection
-        let mockNode: IdeaNode
-        
-        init() {
-            let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-            container = try! ModelContainer(
-                for: IdeaCollection.self, IdeaProject.self, IdeaNode.self,
-                configurations: configuration
-            )
-            
-            mockCollection = IdeaCollection(
-                name: "Demo Collection",
-                summary: "Explore and refine product ideas",
-                iconName: "folder",
-                colorName: "blue",
-                purpose: "Explore and refine product ideas",
-                goalsText: "Ship MVP, validate with users",
-                keyConceptsText: "Focus, scope, feedback",
-                backgroundContext: "We’re exploring opportunities in productivity tools.",
-                refinementInstructions: "Clarify user value; propose small next steps"
-            )
-            
-            mockNode = IdeaNode(
-                rawCapture: "A lightweight note-taking app that automatically organizes ideas by topics using on-device intelligence.",
-                title: "",
-                refinedText: "",
-                summary: "",
-                status: "seed",
-                nextQuestionsText: ""
-            )
-            
-            mockNode.collectionID = mockCollection.id
-            mockNode.collection = mockCollection
-            container.mainContext.insert(mockCollection)
-            container.mainContext.insert(mockNode)
-        }
-        
-        var body: some View {
-            NavigationStack {
-                IdeaNodeDetailView(node: mockNode, collection: mockCollection)
-            }
-            .modelContainer(container)
-        }
+struct PreviewIdeaNodeDetail: View {
+    let container: ModelContainer
+    let mockCollection: IdeaCollection
+    let mockNode: IdeaNode
+
+    init() {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        container = try! ModelContainer(
+            for: IdeaCollection.self, IdeaProject.self, IdeaNode.self,
+            configurations: configuration
+        )
+
+        mockCollection = IdeaCollection(
+            name: "Demo Collection",
+            summary: "Explore and refine product ideas",
+            iconName: "folder",
+            colorName: "blue",
+            purpose: "Explore and refine product ideas",
+            goalsText: "Ship MVP, validate with users",
+            keyConceptsText: "Focus, scope, feedback",
+            backgroundContext: "We’re exploring opportunities in productivity tools.",
+            refinementInstructions: "Clarify user value; propose small next steps"
+        )
+
+        mockNode = IdeaNode(
+            rawCapture: "A lightweight note-taking app that automatically organizes ideas by topics using on-device intelligence.",
+            title: "",
+            refinedText: "",
+            summary: "",
+            status: "seed",
+            nextQuestionsText: ""
+        )
+
+        mockNode.collectionID = mockCollection.id
+        mockNode.collection = mockCollection
+        container.mainContext.insert(mockCollection)
+        container.mainContext.insert(mockNode)
     }
 
+    var body: some View {
+        NavigationStack {
+            IdeaNodeDetailView(node: mockNode, collection: mockCollection)
+        }
+        .modelContainer(container)
+    }
+}
