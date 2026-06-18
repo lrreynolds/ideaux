@@ -131,4 +131,71 @@ struct IdeaContextBuilderTests {
         #expect(snapshot.siblingTitles.isEmpty)
         #expect(snapshot.childTitles.isEmpty)
     }
+    
+    @Test("Refinement prompt includes collection context and raw input")
+    func refinementPromptIncludesContextAndInput() {
+        let snapshot = IdeaContextSnapshot(
+            collectionName: "ideauX",
+            collectionSummary: "Voice-first thinking companion",
+            purpose: "Capture and refine ideas while offline.",
+            goals: "Make idea capture fast and contextual.",
+            keyConcepts: "Voice capture, idea trees, export, refinement",
+            backgroundContext: "The app is being dogfooded while it is built.",
+            refinementInstructions: "Keep nodes small and actionable.",
+            parentPath: ["Voice-First UX", "Idea Capture"],
+            currentNodeTitle: "Capture by dictation",
+            currentNodeContent: "Users should speak ideas instead of typing them.",
+            siblingTitles: ["Question Answering", "Collection Creation"],
+            childTitles: ["Mic button", "Edit after transcription"]
+        )
+
+        let prompt = IdeaPromptBuilder.refinementPrompt(
+            for: snapshot,
+            rawInput: "User should be able to add a quick thought while hiking."
+        )
+
+        #expect(prompt.contains("Collection:"))
+        #expect(prompt.contains("ideauX"))
+        #expect(prompt.contains("Capture and refine ideas while offline."))
+        #expect(prompt.contains("Voice-First UX > Idea Capture"))
+        #expect(prompt.contains("Capture by dictation"))
+        #expect(prompt.contains("Users should speak ideas instead of typing them."))
+        #expect(prompt.contains("- Question Answering"))
+        #expect(prompt.contains("- Collection Creation"))
+        #expect(prompt.contains("- Mic button"))
+        #expect(prompt.contains("- Edit after transcription"))
+        #expect(prompt.contains("User should be able to add a quick thought while hiking."))
+    }
+
+    @Test("Refinement prompt uses None for empty context lists")
+    func refinementPromptUsesNoneForEmptyLists() {
+        let snapshot = IdeaContextSnapshot(
+            collectionName: "ideauX",
+            collectionSummary: "",
+            purpose: "",
+            goals: "",
+            keyConcepts: "",
+            backgroundContext: "",
+            refinementInstructions: "",
+            parentPath: [],
+            currentNodeTitle: "",
+            currentNodeContent: "",
+            siblingTitles: [],
+            childTitles: []
+        )
+
+        let prompt = IdeaPromptBuilder.refinementPrompt(
+            for: snapshot,
+            rawInput: "A rough idea."
+        )
+
+        #expect(prompt.contains("Parent Path:\nNone"))
+        #expect(prompt.contains("Siblings:\nNone"))
+        #expect(prompt.contains("Children:\nNone"))
+        #expect(prompt.contains("A rough idea."))
+        #expect(prompt.contains("Title:"))
+        #expect(prompt.contains("Summary:"))
+        #expect(prompt.contains("Suggested Questions:"))
+        #expect(prompt.contains("Suggested Child Ideas:"))
+    }
 }
