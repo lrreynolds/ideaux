@@ -64,45 +64,44 @@ struct IdeaCollectionDetailView: View {
                         .font(.headline)
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Ideas")
                         .font(.headline)
 
-                    GroupBox("Outline") {
-                        VStack(alignment: .leading, spacing: 4) {
-                            let roots = collectionIdeas
-                                .filter { $0.parentID == nil }
-                                .sorted { lhs, rhs in
-                                    if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
-                                    return lhs.createdAt < rhs.createdAt
-                                }
+                    VStack(alignment: .leading, spacing: 2) {
+                        let roots = collectionIdeas
+                            .filter { $0.parentID == nil }
+                            .sorted { lhs, rhs in
+                                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
+                                return lhs.createdAt < rhs.createdAt
+                            }
 
-                            if roots.isEmpty {
-                                Text("No ideas captured yet.")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                ForEach(roots, id: \.persistentModelID) { root in
-                                    outlineNode(root, all: collectionIdeas, depth: 0)
-                                }
+                        if roots.isEmpty {
+                            Text("No ideas captured yet.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(roots, id: \.persistentModelID) { root in
+                                outlineNode(root, all: collectionIdeas, depth: 0)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                Button {
-                    showingCapture = true
-                } label: {
-                    Label("Capture Idea", systemImage: "plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             .padding()
         }
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingCapture = true
+                    } label: {
+                        Label("Capture Idea", systemImage: "plus")
+                    }
+                }
+        }
         .sheet(isPresented: $showingCapture) {
             NavigationStack {
                 Form {
