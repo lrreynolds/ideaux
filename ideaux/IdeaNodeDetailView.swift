@@ -38,6 +38,39 @@ struct IdeaNodeDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                
+                GroupBox("Status") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Menu {
+                            Button("🌱 Seed") { setStatus("seed") }
+                            Button("🔎 Exploring") { setStatus("exploring") }
+                            Button("🌿 Refining") { setStatus("refining") }
+                            Button("● Actionable") { setStatus("actionable") }
+                            Button("✓ Implemented") { setStatus("implemented") }
+                            Button("★ Validated") { setStatus("validated") }
+                            Button("✕ Rejected") { setStatus("rejected") }
+                            Button("📦 Archived") { setStatus("archived") }
+                        } label: {
+                            Label("Set Status", systemImage: "tag")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        Button {
+                            setStatus("implemented")
+                        } label: {
+                            Label("Mark Implemented", systemImage: "checkmark.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        Button {
+                            setStatus("validated")
+                        } label: {
+                            Label("Mark Validated", systemImage: "star")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
 
                 GroupBox("Collection") {
                     Text(collection.name)
@@ -166,6 +199,15 @@ struct IdeaNodeDetailView: View {
         case "archived": "📦 Archived"
         default: node.status.capitalized
         }
+    }
+    
+    private func setStatus(_ status: String) {
+        node.status = status
+        node.updatedAt = Date()
+        if status == "implemented" {
+            node.implementedAt = Date()
+        }
+        try? modelContext.save()
     }
 
     private func refineIdea() {
