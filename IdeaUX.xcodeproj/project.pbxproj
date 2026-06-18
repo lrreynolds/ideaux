@@ -6,17 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		6E74DDAE2FE493CC00A688F0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6E16A4342FE196140077EAEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6E16A43B2FE196140077EAEA;
+			remoteInfo = IdeaUX;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		6E16A43C2FE196140077EAEA /* IdeaUX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IdeaUX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E74DDAA2FE493CC00A688F0 /* IdeaUXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IdeaUXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E74DDD82FE495DF00A688F0 /* ideaux.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; name = ideaux.xctestplan; path = IdeaUXTests/ideaux.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		6E16A4602FE2327C0077EAEA /* Exceptions for "IdeaUX" folder in "IdeaUX" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				IdeaContextBuilderTests.swift,
 				Models/IdeaLink.swift,
 			);
 			target = 6E16A43B2FE196140077EAEA /* IdeaUX */;
+		};
+		6E74DDD72FE493DE00A688F0 /* Exceptions for "IdeaUX" folder in "IdeaUXTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				IdeaContextBuilderTests.swift,
+			);
+			target = 6E74DDA92FE493CC00A688F0 /* IdeaUXTests */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -25,8 +45,14 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				6E16A4602FE2327C0077EAEA /* Exceptions for "IdeaUX" folder in "IdeaUX" target */,
+				6E74DDD72FE493DE00A688F0 /* Exceptions for "IdeaUX" folder in "IdeaUXTests" target */,
 			);
 			path = IdeaUX;
+			sourceTree = "<group>";
+		};
+		6E74DDAB2FE493CC00A688F0 /* IdeaUXTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = IdeaUXTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,13 +65,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6E74DDA72FE493CC00A688F0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		6E16A4332FE196140077EAEA = {
 			isa = PBXGroup;
 			children = (
+				6E74DDD82FE495DF00A688F0 /* ideaux.xctestplan */,
 				6E16A43E2FE196140077EAEA /* IdeaUX */,
+				6E74DDAB2FE493CC00A688F0 /* IdeaUXTests */,
 				6E16A43D2FE196140077EAEA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				6E16A43C2FE196140077EAEA /* IdeaUX.app */,
+				6E74DDAA2FE493CC00A688F0 /* IdeaUXTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,6 +119,29 @@
 			productReference = 6E16A43C2FE196140077EAEA /* IdeaUX.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6E74DDA92FE493CC00A688F0 /* IdeaUXTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E74DDB02FE493CC00A688F0 /* Build configuration list for PBXNativeTarget "IdeaUXTests" */;
+			buildPhases = (
+				6E74DDA62FE493CC00A688F0 /* Sources */,
+				6E74DDA72FE493CC00A688F0 /* Frameworks */,
+				6E74DDA82FE493CC00A688F0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6E74DDAF2FE493CC00A688F0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6E74DDAB2FE493CC00A688F0 /* IdeaUXTests */,
+			);
+			name = IdeaUXTests;
+			packageProductDependencies = (
+			);
+			productName = IdeaUXTests;
+			productReference = 6E74DDAA2FE493CC00A688F0 /* IdeaUXTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -96,9 +155,13 @@
 					6E16A43B2FE196140077EAEA = {
 						CreatedOnToolsVersion = 26.5;
 					};
+					6E74DDA92FE493CC00A688F0 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 6E16A43B2FE196140077EAEA;
+					};
 				};
 			};
-			buildConfigurationList = 6E16A4372FE196140077EAEA /* Build configuration list for PBXProject "IdeaUX" */;
+			buildConfigurationList = 6E16A4372FE196140077EAEA /* Build configuration list for PBXProject "ideaux" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -113,12 +176,20 @@
 			projectRoot = "";
 			targets = (
 				6E16A43B2FE196140077EAEA /* IdeaUX */,
+				6E74DDA92FE493CC00A688F0 /* IdeaUXTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		6E16A43A2FE196140077EAEA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6E74DDA82FE493CC00A688F0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -135,7 +206,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6E74DDA62FE493CC00A688F0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6E74DDAF2FE493CC00A688F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6E16A43B2FE196140077EAEA /* IdeaUX */;
+			targetProxy = 6E74DDAE2FE493CC00A688F0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6E16A4452FE196160077EAEA /* Debug */ = {
@@ -323,10 +409,52 @@
 			};
 			name = Release;
 		};
+		6E74DDB12FE493CC00A688F0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4L8UAX4EGM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lrreynolds.IdeaUXTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IdeaUX.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/IdeaUX";
+			};
+			name = Debug;
+		};
+		6E74DDB22FE493CC00A688F0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4L8UAX4EGM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lrreynolds.IdeaUXTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IdeaUX.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/IdeaUX";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		6E16A4372FE196140077EAEA /* Build configuration list for PBXProject "IdeaUX" */ = {
+		6E16A4372FE196140077EAEA /* Build configuration list for PBXProject "ideaux" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6E16A4452FE196160077EAEA /* Debug */,
@@ -340,6 +468,15 @@
 			buildConfigurations = (
 				6E16A4482FE196160077EAEA /* Debug */,
 				6E16A4492FE196160077EAEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6E74DDB02FE493CC00A688F0 /* Build configuration list for PBXNativeTarget "IdeaUXTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6E74DDB12FE493CC00A688F0 /* Debug */,
+				6E74DDB22FE493CC00A688F0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
