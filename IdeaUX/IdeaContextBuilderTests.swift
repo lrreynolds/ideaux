@@ -92,4 +92,43 @@ struct IdeaContextBuilderTests {
         #expect(snapshot.siblingTitles.isEmpty)
         #expect(snapshot.childTitles.isEmpty)
     }
+    
+    @Test("Deep node snapshot includes full parent path")
+    func deepNodeSnapshot() {
+        let collection = IdeaCollection(name: "ideauX")
+
+        let root = IdeaNode(title: "Product Vision")
+        root.collectionID = collection.id
+
+        let child = IdeaNode(title: "Voice-First UX")
+        child.collectionID = collection.id
+        child.parentID = root.id
+
+        let grandchild = IdeaNode(title: "Collection Creation")
+        grandchild.collectionID = collection.id
+        grandchild.parentID = child.id
+
+        let sibling = IdeaNode(title: "Idea Capture")
+        sibling.collectionID = collection.id
+        sibling.parentID = child.id
+
+        let leaf = IdeaNode(title: "User dictates title and short blurb")
+        leaf.collectionID = collection.id
+        leaf.parentID = grandchild.id
+
+        let snapshot = IdeaContextBuilder.snapshot(
+            collection: collection,
+            node: leaf,
+            allNodes: [root, child, grandchild, sibling, leaf]
+        )
+
+        #expect(snapshot.parentPath == [
+            "Product Vision",
+            "Voice-First UX",
+            "Collection Creation"
+        ])
+        #expect(snapshot.currentNodeTitle == "User dictates title and short blurb")
+        #expect(snapshot.siblingTitles.isEmpty)
+        #expect(snapshot.childTitles.isEmpty)
+    }
 }
