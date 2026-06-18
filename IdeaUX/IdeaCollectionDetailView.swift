@@ -11,25 +11,34 @@ import SwiftData
 struct IdeaCollectionDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
-    let collection: IdeaCollection
+    @Bindable var collection: IdeaCollection
 
     @Query(sort: \IdeaNode.createdAt, order: .reverse) private var allIdeas: [IdeaNode]
 
     @State private var showingCapture = false
     @State private var captureText = ""
     @State private var expanded: Set<UUID> = []
-    @State private var showContext: Bool = false
+    @State private var showingContext = false
 
     var body: some View {
         let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Image(systemName: collection.iconName)
+                HStack(alignment: .firstTextBaseline) {
+
                     Text(collection.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
+                    Spacer()
+                    Button {
+                        showingContext = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.title2)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.blue)
                 }
 
                 if !collection.summary.isEmpty {
@@ -38,35 +47,10 @@ struct IdeaCollectionDetailView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                DisclosureGroup(isExpanded: $showContext) {
-                    GroupBox("Purpose") {
-                        Text(collection.purpose.isEmpty ? "No purpose yet." : collection.purpose)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    GroupBox("Goals") {
-                        Text(collection.goalsText.isEmpty ? "No goals yet." : collection.goalsText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    GroupBox("Key Concepts") {
-                        Text(collection.keyConceptsText.isEmpty ? "No key concepts yet." : collection.keyConceptsText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    GroupBox("Background Context") {
-                        Text(collection.backgroundContext.isEmpty ? "No background context yet." : collection.backgroundContext)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    GroupBox("Refinement Instructions") {
-                        Text(collection.refinementInstructions.isEmpty ? "No refinement instructions yet." : collection.refinementInstructions)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } label: {
-                    Text("Collection Context")
-                        .font(.headline)
-                }
+                
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Ideas")
-                        .font(.headline)
+                 
 
                     VStack(alignment: .leading, spacing: 2) {
                         let roots = collectionIdeas
@@ -138,6 +122,74 @@ struct IdeaCollectionDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingContext) {
+            NavigationStack {
+                Form {
+                    Section("Collection") {
+                        TextField("Name", text: $collection.name)
+                        TextField("Summary", text: $collection.summary, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+
+                    Section("Context") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Purpose")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.purpose)
+                                .frame(minHeight: 80)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Goals")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.goalsText)
+                                .frame(minHeight: 100)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Key Concepts")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.keyConceptsText)
+                                .frame(minHeight: 100)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Background Context")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.backgroundContext)
+                                .frame(minHeight: 120)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Refinement Instructions")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.refinementInstructions)
+                                .frame(minHeight: 120)
+                        }
+                    }
+                    Section("Export") {
+                        ShareLink(item: exportMarkdown(for: collection, ideas: collectionIdeas)) {
+                            Label("Export Collection as Markdown", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                }
+                .navigationTitle("Collection Settings")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            try? modelContext.save()
+                            showingContext = false
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func outlineNode(_ node: IdeaNode, all: [IdeaNode], depth: Int) -> AnyView {
@@ -182,6 +234,132 @@ struct IdeaCollectionDetailView: View {
                 if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
                 return lhs.createdAt < rhs.createdAt
             }
+    }
+
+    private func exportMarkdown(for collection: IdeaCollection, ideas: [IdeaNode]) -> String {
+        var lines: [String] = []
+
+        lines.append("# \(collection.name)")
+        lines.append("")
+
+        let summary = collection.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !summary.isEmpty {
+            lines.append(summary)
+            lines.append("")
+        }
+
+        appendContextSection(title: "Purpose", text: collection.purpose, to: &lines)
+        appendContextSection(title: "Goals", text: collection.goalsText, to: &lines)
+        appendContextSection(title: "Key Concepts", text: collection.keyConceptsText, to: &lines)
+        appendContextSection(title: "Background Context", text: collection.backgroundContext, to: &lines)
+        appendContextSection(title: "Refinement Instructions", text: collection.refinementInstructions, to: &lines)
+
+        let roots = ideas
+            .filter { $0.parentID == nil }
+            .sorted { lhs, rhs in
+                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
+                return lhs.createdAt < rhs.createdAt
+            }
+
+        if !roots.isEmpty {
+            lines.append("## Idea Tree")
+            lines.append("")
+
+            for root in roots {
+                appendMarkdownNode(root, all: ideas, depth: 0, to: &lines)
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func appendContextSection(title: String, text: String, to lines: inout [String]) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        lines.append("## \(title)")
+        lines.append("")
+        lines.append(trimmed)
+        lines.append("")
+    }
+
+    private func appendMarkdownNode(_ node: IdeaNode, all: [IdeaNode], depth: Int, to lines: inout [String]) {
+        let indent = String(repeating: "  ", count: depth)
+        let title = markdownTitle(for: node)
+        let metadata = exportMetadata(for: node)
+
+        if metadata.isEmpty {
+            lines.append("\(indent)- \(title)")
+        } else {
+            lines.append("\(indent)- \(title) _(\(metadata.joined(separator: " • ")))_")
+        }
+
+        let summary = node.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !summary.isEmpty {
+            lines.append("\(indent)  - Summary: \(summary)")
+        }
+
+        let refinedText = node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !refinedText.isEmpty && refinedText != node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines) {
+            lines.append("\(indent)  - Refined: \(refinedText)")
+        }
+
+        let kids = children(of: node, in: all)
+        for child in kids {
+            appendMarkdownNode(child, all: all, depth: depth + 1, to: &lines)
+        }
+    }
+
+    private func exportMetadata(for node: IdeaNode) -> [String] {
+        var metadata: [String] = []
+
+        let type = node.nodeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if type == "question" {
+            metadata.append("Question")
+        }
+
+        switch status {
+        case "done", "implemented":
+            metadata.append("Done")
+        case "active", "actionable", "refining", "exploring", "growing":
+            metadata.append("Active")
+        case "archived", "rejected":
+            metadata.append("Archived")
+        default:
+            break
+        }
+
+        return metadata
+    }
+
+    private func markdownTitle(for node: IdeaNode) -> String {
+        let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+
+        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty { return raw }
+
+        return "Untitled"
+    }
+}
+
+private struct ContextSection: View {
+    let title: String
+    let text: String
+
+    var body: some View {
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline)
+                Text(text).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
 }
 
