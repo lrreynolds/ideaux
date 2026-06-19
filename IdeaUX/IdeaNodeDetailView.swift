@@ -26,135 +26,83 @@ struct IdeaNodeDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(node.title.isEmpty ? String(node.rawCapture.prefix(80)) : node.title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(node.title.isEmpty ? String(node.rawCapture.prefix(80)) : node.title)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
 
-                HStack {
-                    Text(statusLabel)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.green.opacity(0.15))
-                        .clipShape(Capsule())
+                    HStack(spacing: 10) {
+                        Text(statusLabel)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.green.opacity(0.15))
+                            .clipShape(Capsule())
 
-                    Text(node.createdAt, style: .date)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(node.createdAt, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                 }
 
-                GroupBox("Status") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Menu {
-                            Button("🌱 Seed") { setStatus("seed") }
-                            Button("🔎 Exploring") { setStatus("exploring") }
-                            Button("🌿 Refining") { setStatus("refining") }
-                            Button("● Actionable") { setStatus("actionable") }
-                            Button("✓ Implemented") { setStatus("implemented") }
-                            Button("★ Validated") { setStatus("validated") }
-                            Button("✕ Rejected") { setStatus("rejected") }
-                            Button("📦 Archived") { setStatus("archived") }
-                        } label: {
-                            Label("Set Status", systemImage: "tag")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-
-                        if node.status != "implemented" {
-                            Button {
-                                setStatus("implemented")
-                            } label: {
-                                Label("Mark Implemented", systemImage: "checkmark.circle")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        if node.status != "validated" {
-                            Button {
-                                setStatus("validated")
-                            } label: {
-                                Label("Mark Validated", systemImage: "star")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                    if let lastAnalyzedAt = node.lastAnalyzedAt {
+                        Text("Analyzed \(lastAnalyzedAt, style: .relative) ago")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
-                GroupBox("Collection") {
-                    Text(collection.name)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                GroupBox("Original Idea") {
+                    IdeaDetailSection(title: "Original") {
                     Text(node.rawCapture)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                GroupBox("Refined Idea") {
-                    Text(node.refinedText.isEmpty ? "Not refined yet." : node.refinedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            IdeaDetailSection(title: "Interpretation") {
+                Text(node.modelInterpretation.isEmpty ? "Not analyzed yet." : node.modelInterpretation)
                 }
 
-                GroupBox("Why It Matters") {
-                    Text(node.summary.isEmpty ? "No summary yet." : node.summary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            IdeaDetailSection(title: "Summary") {
+                Text(node.refinedText.isEmpty ? "No summary yet." : node.refinedText)
                 }
 
-                GroupBox("Next Questions") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(
-                            node.nextQuestionsText
-                                .split(separator: "\n")
-                                .map(String.init),
-                            id: \.self
-                        ) { question in
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "questionmark.circle")
-                                    .foregroundStyle(.secondary)
-
-                                Text(question)
-                            }
-                        }
-                    }
+            IdeaDetailSection(title: "Questions") {
+                IdeaTextList(text: node.modelQuestionsText, emptyText: "No questions yet.")
                 }
 
-                Button {
-                  showContextDebug()
-                } label: {
-                    Label("PROMPT DEBUG", systemImage: "doc.text")
-                        .frame(maxWidth: .infinity)
+            IdeaDetailSection(title: "Related Ideas") {
+                IdeaTextList(text: node.modelRelatedIdeasText, emptyText: "No related ideas yet.")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+               
 
-                Button {
-                    refineIdea()
-                } label: {
-                    Label("Refine Idea", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
+            IdeaDetailSection(title: "Possible Next Steps") {
+                IdeaTextList(text: node.modelNextStepsText, emptyText: "No next steps yet.")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                
 
+            VStack(spacing: 12) {
                 Button {
                     Task {
                         await testFoundationModel()
                     }
                 } label: {
-                    Label("Test Foundation Model", systemImage: "flask")
+                    Label("Analyze Idea", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
+                    }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Button {
+                    showingAddChild = true
+                } label: {
+                    Label("Add Child Idea", systemImage: "plus.rectangle.on.folder")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
                 Button {
-                    showingAddChild = true
+                    showContextDebug()
                 } label: {
-                    Label("Add Child Node", systemImage: "plus.rectangle.on.folder")
+                    Label("Prompt Debug", systemImage: "doc.text")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -169,11 +117,23 @@ struct IdeaNodeDetailView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-            }
+                }
+            
+            
             .padding()
         }
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddChild = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Add Child Idea")
+            }
+        }
         .sheet(item: $debugDocument) { doc in
             NavigationStack {
                 ScrollView {
@@ -289,8 +249,8 @@ struct IdeaNodeDetailView: View {
 
     private func testFoundationModel() async {
         debugDocument = DebugDocument(
-            title: "Model Output",
-            text: "Running typed Foundation Model test…"
+            title: "Analyzing Idea",
+            text: "Running typed Foundation Model analysis…"
         )
 
         do {
@@ -328,6 +288,17 @@ struct IdeaNodeDetailView: View {
             """
 
             await MainActor.run {
+                node.title = suggestion.title
+                node.modelInterpretation = suggestion.interpretation
+                node.refinedText = suggestion.summary
+                node.modelQuestionsText = suggestion.questions.joined(separator: "\n")
+                node.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
+                node.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
+                node.lastAnalyzedAt = Date()
+                node.updatedAt = Date()
+
+                try? modelContext.save()
+
                 debugDocument = DebugDocument(
                     title: "Typed Model Output",
                     text: output
@@ -343,37 +314,8 @@ struct IdeaNodeDetailView: View {
         }
     }
 
-    private func refineIdea() {
-        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        node.status = "refining"
-        node.updatedAt = Date()
-        node.title = String(raw.prefix(60))
-        node.refinedText = raw
-
-        let contextParts = [
-            collection.purpose,
-            collection.goalsText,
-            collection.keyConceptsText,
-            collection.backgroundContext,
-            collection.refinementInstructions
-        ].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-
-        if contextParts.isEmpty {
-            node.summary = "This idea may be useful within \(collection.name) because it relates to the collection context."
-        } else {
-            node.summary = "This idea may be useful within \(collection.name) because it connects to: \(contextParts.joined(separator: " "))"
-        }
-
-        node.nextQuestionsText = """
-        What problem does this solve within \(collection.name)?
-        Which existing idea or project does this connect to?
-        What is the smallest next experiment?
-        What would make this idea 10x better?
-        """
-
-        try? modelContext.save()
-    }
+   
+  
 }
 
 #Preview("Idea Detail") {
@@ -432,3 +374,54 @@ struct DebugDocument: Identifiable {
     let title: String
     let text: String
 }
+
+struct IdeaDetailSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+
+            content
+                .font(.body)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+struct IdeaTextList: View {
+    let text: String
+    let emptyText: String
+
+    var items: [String] {
+        text
+            .split(separator: "\n")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        if items.isEmpty {
+            Text(emptyText)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Text(item)
+                    }
+                }
+            }
+        }
+    }
+}
+

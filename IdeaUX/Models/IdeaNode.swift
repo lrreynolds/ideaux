@@ -36,6 +36,12 @@ final class IdeaNode {
 
     var tagsText: String
     var sortOrder: Int
+    
+    var modelInterpretation: String = ""
+    var modelQuestionsText: String = ""
+    var modelRelatedIdeasText: String = ""
+    var modelNextStepsText: String = ""
+    var lastAnalyzedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -57,7 +63,12 @@ final class IdeaNode {
         collection: IdeaCollection? = nil,
         project: IdeaProject? = nil,
         tagsText: String = "",
-        sortOrder: Int = 0
+        sortOrder: Int = 0,
+        modelInterpretation: String = "",
+        modelQuestionsText: String = "",
+        modelRelatedIdeasText: String = "",
+        modelNextStepsText: String = "",
+        lastAnalyzedAt: Date? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -79,5 +90,10 @@ final class IdeaNode {
         self.project = project
         self.tagsText = tagsText
         self.sortOrder = sortOrder
+        self.modelInterpretation = modelInterpretation
+        self.modelQuestionsText = modelQuestionsText
+        self.modelRelatedIdeasText = modelRelatedIdeasText
+        self.modelNextStepsText = modelNextStepsText
+        self.lastAnalyzedAt = lastAnalyzedAt
     }
 }

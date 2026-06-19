@@ -1,14 +1,56 @@
 import Foundation
 import SwiftData
 
+struct IdeaMarkdownNormalizer {
+    static func normalize(_ markdown: String) -> String {
+        var lines = markdown.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        // Strip common markdown code fences that models often add.
+        lines = lines.filter { line in
+            let lower = line.lowercased()
+            return lower != "```" && lower != "```markdown" && lower != "```md"
+        }
+
+        // Drop anything before the first collection heading.
+        if let firstHeadingIndex = lines.firstIndex(where: { $0.hasPrefix("# ") }) {
+            lines = Array(lines[firstHeadingIndex...])
+        }
+
+        // Normalize common bullet styles to IdeaUX markdown bullets.
+        lines = lines.map { line in
+            if line.hasPrefix("* ") {
+                return "- " + line.dropFirst(2)
+            }
+            if line.hasPrefix("+ ") {
+                return "- " + line.dropFirst(2)
+            }
+            if line.hasPrefix("• ") {
+                return "- " + line.dropFirst(2)
+            }
+            return line
+        }
+
+        // Remove empty leading/trailing lines after normalization.
+        while lines.first?.isEmpty == true {
+            lines.removeFirst()
+        }
+        while lines.last?.isEmpty == true {
+            lines.removeLast()
+        }
+
+        return lines.joined(separator: "\n")
+    }
+}
+
 struct IdeaTreeImporter {
     enum ImportMode {
         case createNewCopy
         case replaceExisting
     }
     static func importMarkdown(_ markdown: String, into collection: IdeaCollection, context: ModelContext) {
-        // Split into lines and iterate
-        let lines = markdown.components(separatedBy: .newlines)
+        let normalizedMarkdown = IdeaMarkdownNormalizer.normalize(markdown)
+        let lines = normalizedMarkdown.components(separatedBy: .newlines)
         
         // Track the last created nodes for hierarchy inference
         var lastRoot: IdeaNode? = nil
@@ -106,7 +148,8 @@ struct IdeaTreeImporter {
     }
     
     static func importMarkdownAsCollection(_ markdown: String, context: ModelContext, mode: ImportMode = .createNewCopy) -> IdeaCollection? {
-        let lines = markdown.components(separatedBy: .newlines)
+        let normalizedMarkdown = IdeaMarkdownNormalizer.normalize(markdown)
+        let lines = normalizedMarkdown.components(separatedBy: .newlines)
         
         func clean(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
         func inferType(from title: String) -> String {
