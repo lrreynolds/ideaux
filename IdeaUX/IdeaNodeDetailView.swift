@@ -28,8 +28,9 @@ struct IdeaNodeDetailView: View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(node.title.isEmpty ? String(node.rawCapture.prefix(80)) : node.title)
-                        .font(.largeTitle)
+                        .font(.headline)
                         .fontWeight(.bold)
+                        .padding()
 
                     HStack(spacing: 10) {
                         Text(statusLabel)

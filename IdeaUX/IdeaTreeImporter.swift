@@ -6,40 +6,95 @@ struct IdeaMarkdownNormalizer {
         var lines = markdown.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-        // Strip common markdown code fences that models often add.
+        // Strip common markdown code fences.
         lines = lines.filter { line in
             let lower = line.lowercased()
             return lower != "```" && lower != "```markdown" && lower != "```md"
         }
 
-        // Drop anything before the first collection heading.
+        // Drop leading commentary before a likely collection title.
+        while let first = lines.first, first.isEmpty {
+            lines.removeFirst()
+        }
+
+        // If no "# " title exists, treat first non-empty plain line as collection title.
+        if let firstNonEmptyIndex = lines.firstIndex(where: { !$0.isEmpty }) {
+            let first = lines[firstNonEmptyIndex]
+            if !first.hasPrefix("#") && !first.lowercased().hasPrefix("purpose:") {
+                lines[firstNonEmptyIndex] = "# \(first)"
+            }
+        }
+
+        // If a "# " heading exists later, drop anything before it.
         if let firstHeadingIndex = lines.firstIndex(where: { $0.hasPrefix("# ") }) {
             lines = Array(lines[firstHeadingIndex...])
         }
 
-        // Normalize common bullet styles to IdeaUX markdown bullets.
+        // Normalize bullets.
         lines = lines.map { line in
-            if line.hasPrefix("* ") {
-                return "- " + line.dropFirst(2)
-            }
-            if line.hasPrefix("+ ") {
-                return "- " + line.dropFirst(2)
-            }
-            if line.hasPrefix("• ") {
-                return "- " + line.dropFirst(2)
-            }
+            if line.hasPrefix("* ") { return "- " + line.dropFirst(2) }
+            if line.hasPrefix("+ ") { return "- " + line.dropFirst(2) }
+            if line.hasPrefix("• ") { return "- " + line.dropFirst(2) }
             return line
         }
 
-        // Remove empty leading/trailing lines after normalization.
-        while lines.first?.isEmpty == true {
-            lines.removeFirst()
-        }
-        while lines.last?.isEmpty == true {
-            lines.removeLast()
+        // Convert bare section titles followed by bullets into ## headings.
+        var normalized: [String] = []
+
+        for index in lines.indices {
+            let line = lines[index]
+            let previous = index > lines.startIndex ? lines[lines.index(before: index)] : ""
+            let next = index < lines.index(before: lines.endIndex) ? lines[lines.index(after: index)] : ""
+
+            let isHeading = line.hasPrefix("#")
+            let isBullet = line.hasPrefix("- ")
+            let isMetadata = line.lowercased().hasPrefix("purpose:")
+                || line.lowercased().hasPrefix("goals:")
+                || line.lowercased().hasPrefix("key concepts:")
+                || line.lowercased().hasPrefix("background context:")
+                || line.lowercased().hasPrefix("refinement instructions:")
+
+            let looksLikeBareSection =
+                !line.isEmpty &&
+                !isHeading &&
+                !isBullet &&
+                !isMetadata &&
+                previous.isEmpty &&
+                next.hasPrefix("- ")
+
+            if looksLikeBareSection {
+                normalized.append("## \(line)")
+            } else {
+                normalized.append(line)
+            }
         }
 
-        return lines.joined(separator: "\n")
+        // Remove empty leading/trailing lines.
+        while normalized.first?.isEmpty == true {
+            normalized.removeFirst()
+        }
+        while normalized.last?.isEmpty == true {
+            normalized.removeLast()
+        }
+
+        return normalized.joined(separator: "\n")
+    }
+}
+
+struct IdeaImportDebug {
+    static var enabled = true
+
+    static func log(_ title: String, _ text: String) {
+#if DEBUG
+        guard enabled else { return }
+
+        print("\n====================")
+        print("IDEA IMPORT DEBUG")
+        print(title)
+        print("====================")
+        print(text)
+        print("====================\n")
+#endif
     }
 }
 
@@ -51,6 +106,9 @@ struct IdeaTreeImporter {
     static func importMarkdown(_ markdown: String, into collection: IdeaCollection, context: ModelContext) {
         let normalizedMarkdown = IdeaMarkdownNormalizer.normalize(markdown)
         let lines = normalizedMarkdown.components(separatedBy: .newlines)
+        
+        IdeaImportDebug.log("RAW MARKDOWN", markdown)
+        IdeaImportDebug.log("NORMALIZED MARKDOWN", normalizedMarkdown)
         
         // Track the last created nodes for hierarchy inference
         var lastRoot: IdeaNode? = nil
@@ -150,6 +208,9 @@ struct IdeaTreeImporter {
     static func importMarkdownAsCollection(_ markdown: String, context: ModelContext, mode: ImportMode = .createNewCopy) -> IdeaCollection? {
         let normalizedMarkdown = IdeaMarkdownNormalizer.normalize(markdown)
         let lines = normalizedMarkdown.components(separatedBy: .newlines)
+        
+        IdeaImportDebug.log("RAW COLLECTION IMPORT", markdown)
+        IdeaImportDebug.log("NORMALIZED COLLECTION IMPORT", normalizedMarkdown)
         
         func clean(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
         func inferType(from title: String) -> String {
@@ -317,6 +378,12 @@ struct IdeaTreeImporter {
             
             do {
                 try context.save()
+
+                IdeaImportDebug.log(
+                    "IMPORT SUCCESS",
+                    "Collection: \(collection.name)\nNodes Imported: \(orderCounter)"
+                )
+
                 return collection
             } catch {
 #if DEBUG
