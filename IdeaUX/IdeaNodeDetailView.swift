@@ -19,8 +19,10 @@ struct IdeaNodeDetailView: View {
 
     @State private var showingAddChild = false
     @State private var childCaptureText = ""
-    @State private var showingModelResult = false
-    @State private var modelResult = ""
+ 
+   
+    
+    @State private var debugDocument: DebugDocument?
 
     var body: some View {
         ScrollView {
@@ -121,6 +123,15 @@ struct IdeaNodeDetailView: View {
                 }
 
                 Button {
+                  showContextDebug()
+                } label: {
+                    Label("PROMPT DEBUG", systemImage: "doc.text")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
+                Button {
                     refineIdea()
                 } label: {
                     Label("Refine Idea", systemImage: "sparkles")
@@ -163,24 +174,25 @@ struct IdeaNodeDetailView: View {
         }
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingModelResult) {
+        .sheet(item: $debugDocument) { doc in
             NavigationStack {
                 ScrollView {
-                    Text(modelResult)
+                    Text(doc.text)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                 }
-                .navigationTitle("Model Output")
+                .navigationTitle(doc.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") {
-                            showingModelResult = false
+                           debugDocument = nil
                         }
                     }
                 }
             }
         }
+     
         .sheet(isPresented: $showingAddChild) {
             NavigationStack {
                 Form {
@@ -239,6 +251,20 @@ struct IdeaNodeDetailView: View {
         default: node.status.capitalized
         }
     }
+    
+    private func showContextDebug() {
+        let snapshot = makeCurrentSnapshot()
+
+        let prompt = IdeaPromptBuilder.refinementPrompt(
+            for: snapshot,
+            rawInput: node.rawCapture
+        )
+
+        debugDocument = DebugDocument(
+            title: "Prompt Debug",
+            text: prompt
+        )
+    }
 
     private func setStatus(_ status: String) {
         node.status = status
@@ -249,41 +275,70 @@ struct IdeaNodeDetailView: View {
         try? modelContext.save()
     }
 
+    private func makeCurrentSnapshot() -> IdeaContextSnapshot {
+        let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+        return IdeaContextBuilder.snapshot(
+            collection: collection,
+            node: node,
+            allNodes: collectionIdeas
+        )
+    }
+
+ 
+
     private func testFoundationModel() async {
-        await MainActor.run {
-            modelResult = "Running Foundation Model test…"
-            showingModelResult = true
-        }
+        debugDocument = DebugDocument(
+            title: "Model Output",
+            text: "Running typed Foundation Model test…"
+        )
 
         do {
-            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
-
-            let snapshot = IdeaContextBuilder.snapshot(
-                collection: collection,
-                node: node,
-                allNodes: collectionIdeas
-            )
+            let snapshot = makeCurrentSnapshot()
 
             let prompt = IdeaPromptBuilder.refinementPrompt(
                 for: snapshot,
                 rawInput: node.rawCapture
             )
 
-            let result = try await FoundationModelIdeaRefiner()
-                .refine(prompt: prompt)
+            let suggestion = try await FoundationModelIdeaRefiner()
+                .refineSuggestion(prompt: prompt)
 
-            let trimmedResult = result.trimmingCharacters(in: .whitespacesAndNewlines)
+            let output = """
+            Original:
+            \(node.rawCapture)
+
+            Title:
+            \(suggestion.title)
+
+            Interpretation:
+            \(suggestion.interpretation)
+
+            Summary:
+            \(suggestion.summary)
+
+            Questions:
+            \(suggestion.questions.map { "- \($0)" }.joined(separator: "\n"))
+
+            Related Ideas:
+            \(suggestion.relatedIdeas.map { "- \($0)" }.joined(separator: "\n"))
+
+            Possible Next Steps:
+            \(suggestion.possibleNextSteps.map { "- \($0)" }.joined(separator: "\n"))
+            """
 
             await MainActor.run {
-                if trimmedResult.isEmpty {
-                    modelResult = "EMPTY MODEL RESPONSE\n\nThe Foundation Model call completed but returned no visible text.\n\nPrompt sent:\n\n\(prompt)"
-                } else {
-                    modelResult = trimmedResult
-                }
+                debugDocument = DebugDocument(
+                    title: "Typed Model Output",
+                    text: output
+                )
             }
         } catch {
             await MainActor.run {
-                modelResult = "ERROR:\n\n\(error.localizedDescription)"
+                debugDocument = DebugDocument(
+                    title: "Model Error",
+                    text: error.localizedDescription
+                )
             }
         }
     }
@@ -370,4 +425,10 @@ struct PreviewIdeaNodeDetail: View {
         }
         .modelContainer(container)
     }
+}
+
+struct DebugDocument: Identifiable {
+    let id = UUID()
+    let title: String
+    let text: String
 }
