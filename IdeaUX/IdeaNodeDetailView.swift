@@ -19,6 +19,11 @@ struct IdeaNodeDetailView: View {
 
     @State private var showingAddChild = false
     @State private var childCaptureText = ""
+    @State private var selectedChildNode: IdeaNode?
+    @State private var showingEditCore = false
+    @State private var editTitleText = ""
+    @State private var editSummaryText = ""
+    @FocusState private var childEditorFocused: Bool
  
    
     
@@ -65,30 +70,40 @@ struct IdeaNodeDetailView: View {
                 Text(node.refinedText.isEmpty ? "No summary yet." : node.refinedText)
                 }
 
-            IdeaDetailSection(title: "Questions") {
-                IdeaTextList(text: node.modelQuestionsText, emptyText: "No questions yet.")
-                }
-
-            IdeaDetailSection(title: "Related Ideas") {
-                IdeaTextList(text: node.modelRelatedIdeasText, emptyText: "No related ideas yet.")
-                }
-               
-
-            IdeaDetailSection(title: "Possible Next Steps") {
-                IdeaTextList(text: node.modelNextStepsText, emptyText: "No next steps yet.")
-                }
+// REMOVED: Questions, Related Ideas, Possible Next Steps sections
                 
 
             VStack(spacing: 12) {
+                Button {
+                    acceptCoreIdea()
+                } label: {
+                    Label("Accept Title & Summary", systemImage: "checkmark.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(node.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button {
+                    editTitleText = node.title
+                    editSummaryText = node.refinedText
+                    showingEditCore = true
+                } label: {
+                    Label("Edit Title & Summary", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
                 Button {
                     Task {
                         await testFoundationModel()
                     }
                 } label: {
-                    Label("Analyze Idea", systemImage: "sparkles")
+                    Label("Re-analyze Idea", systemImage: "sparkles")
                         .frame(maxWidth: .infinity)
-                    }
-                .buttonStyle(.borderedProminent)
+                }
+                .buttonStyle(.bordered)
                 .controlSize(.large)
 
                 Button {
@@ -125,6 +140,9 @@ struct IdeaNodeDetailView: View {
         }
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $selectedChildNode) { child in
+            IdeaNodeDetailView(node: child, collection: collection)
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -153,19 +171,56 @@ struct IdeaNodeDetailView: View {
                 }
             }
         }
-     
+        .sheet(isPresented: $showingEditCore) {
+            NavigationStack {
+                Form {
+                    Section("Title") {
+                        TextField("Title", text: $editTitleText)
+                    }
+
+                    Section("Summary") {
+                        TextEditor(text: $editSummaryText)
+                            .frame(minHeight: 140)
+                    }
+                }
+                .navigationTitle("Edit Idea")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingEditCore = false
+                        }
+                    }
+
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            saveCoreEdits()
+                            showingEditCore = false
+                        }
+                        .disabled(editTitleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingAddChild) {
             NavigationStack {
                 Form {
                     Section("Child Node") {
                         TextEditor(text: $childCaptureText)
                             .frame(minHeight: 160)
+                            .focused($childEditorFocused)
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    childEditorFocused = true
+                                }
+                            }
                     }
                 }
                 .navigationTitle("Add Child Node")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") {
+                            childEditorFocused = false
                             childCaptureText = ""
                             showingAddChild = false
                         }
@@ -189,8 +244,17 @@ struct IdeaNodeDetailView: View {
                             modelContext.insert(child)
                             try? modelContext.save()
 
+                            childEditorFocused = false
                             childCaptureText = ""
                             showingAddChild = false
+
+                            Task {
+                                await analyze(child)
+
+                                await MainActor.run {
+                                    selectedChildNode = child
+                                }
+                            }
                         }
                         .disabled(childCaptureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -236,6 +300,25 @@ struct IdeaNodeDetailView: View {
         try? modelContext.save()
     }
 
+    private func acceptCoreIdea() {
+        node.status = "refined"
+        node.updatedAt = Date()
+        try? modelContext.save()
+    }
+
+    private func saveCoreEdits() {
+        let title = editTitleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary = editSummaryText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !title.isEmpty else { return }
+
+        node.title = title
+        node.refinedText = summary
+        node.status = "refined"
+        node.updatedAt = Date()
+        try? modelContext.save()
+    }
+
     private func makeCurrentSnapshot() -> IdeaContextSnapshot {
         let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
 
@@ -248,18 +331,27 @@ struct IdeaNodeDetailView: View {
 
  
 
-    private func testFoundationModel() async {
-        debugDocument = DebugDocument(
-            title: "Analyzing Idea",
-            text: "Running typed Foundation Model analysis…"
-        )
+
+    private func analyze(_ targetNode: IdeaNode) async {
+        await MainActor.run {
+            debugDocument = DebugDocument(
+                title: "Analyzing Idea",
+                text: "Running typed Foundation Model analysis…"
+            )
+        }
 
         do {
-            let snapshot = makeCurrentSnapshot()
+            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+            let snapshot = IdeaContextBuilder.snapshot(
+                collection: collection,
+                node: targetNode,
+                allNodes: collectionIdeas
+            )
 
             let prompt = IdeaPromptBuilder.refinementPrompt(
                 for: snapshot,
-                rawInput: node.rawCapture
+                rawInput: targetNode.rawCapture
             )
 
             let suggestion = try await FoundationModelIdeaRefiner()
@@ -267,7 +359,7 @@ struct IdeaNodeDetailView: View {
 
             let output = """
             Original:
-            \(node.rawCapture)
+            \(targetNode.rawCapture)
 
             Title:
             \(suggestion.title)
@@ -289,14 +381,14 @@ struct IdeaNodeDetailView: View {
             """
 
             await MainActor.run {
-                node.title = suggestion.title
-                node.modelInterpretation = suggestion.interpretation
-                node.refinedText = suggestion.summary
-                node.modelQuestionsText = suggestion.questions.joined(separator: "\n")
-                node.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
-                node.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
-                node.lastAnalyzedAt = Date()
-                node.updatedAt = Date()
+                targetNode.title = suggestion.title
+                targetNode.modelInterpretation = suggestion.interpretation
+                targetNode.refinedText = suggestion.summary
+                targetNode.modelQuestionsText = suggestion.questions.joined(separator: "\n")
+                targetNode.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
+                targetNode.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
+                targetNode.lastAnalyzedAt = Date()
+                targetNode.updatedAt = Date()
 
                 try? modelContext.save()
 
@@ -313,6 +405,10 @@ struct IdeaNodeDetailView: View {
                 )
             }
         }
+    }
+
+    private func testFoundationModel() async {
+        await analyze(node)
     }
 
    
@@ -425,4 +521,3 @@ struct IdeaTextList: View {
         }
     }
 }
-
