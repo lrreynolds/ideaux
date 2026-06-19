@@ -6,6 +6,7 @@ struct ImportTreeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \IdeaCollection.name) private var allCollections: [IdeaCollection]
+    @Query(sort: \IdeaNode.createdAt, order: .forward) private var allNodes: [IdeaNode]
 
     @State private var markdown: String = ""
     @State private var pendingMarkdown: String = ""
@@ -65,6 +66,22 @@ struct ImportTreeSheet: View {
                 }
 
                 Button("Replace Existing", role: .destructive) {
+                    let title = collectionTitle(from: pendingMarkdown)
+
+                    if let existingCollection = matchingExistingCollection(for: title) {
+                        do {
+                            _ = try IdeaSnapshotManager.createSnapshot(
+                                for: existingCollection,
+                                allNodes: allNodes,
+                                reason: "Before import replace",
+                                context: modelContext
+                            )
+                        } catch {
+                            importErrorMessage = "Could not create restore point before replacing: \(error.localizedDescription)"
+                            return
+                        }
+                    }
+
                     _ = IdeaTreeImporter.importMarkdownAsCollection(pendingMarkdown, context: modelContext, mode: .replaceExisting)
                     pendingMarkdown = ""
                     dismiss()
