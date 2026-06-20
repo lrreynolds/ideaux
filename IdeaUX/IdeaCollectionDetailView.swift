@@ -16,9 +16,9 @@ struct IdeaCollectionDetailView: View {
     @Query(sort: \IdeaNode.createdAt, order: .reverse) private var allIdeas: [IdeaNode]
 
     @State private var showingCapture = false
-    @State private var captureText = ""
     @State private var expanded: Set<UUID> = []
     @State private var showingContext = false
+    @State private var selectedRootNode: IdeaNode?
 
     var body: some View {
         let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
@@ -77,6 +77,9 @@ struct IdeaCollectionDetailView: View {
         }
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $selectedRootNode) { node in
+            IdeaNodeDetailView(node: node, collection: collection)
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -87,40 +90,16 @@ struct IdeaCollectionDetailView: View {
                 }
         }
         .sheet(isPresented: $showingCapture) {
-            NavigationStack {
-                Form {
-                    Section("Idea") {
-                        TextEditor(text: $captureText)
-                            .frame(minHeight: 160)
-                    }
+            IdeaCaptureSheet(
+                title: "Capture Idea",
+                sectionTitle: "Idea",
+                onCancel: {
+                    showingCapture = false
+                },
+                onSave: { text in
+                    createRootIdea(from: text)
                 }
-                .navigationTitle("Capture Idea")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showingCapture = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let text = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !text.isEmpty else { return }
-
-                            let node = IdeaNode(rawCapture: text)
-                            node.collectionID = collection.id
-                            node.collection = collection
-                            node.parentID = nil
-                            node.parent = nil
-                            node.status = "seed"
-
-                            modelContext.insert(node)
-                            try? modelContext.save()
-
-                            captureText = ""
-                            showingCapture = false
-                        }
-                        .disabled(captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-            }
+            )
         }
         .sheet(isPresented: $showingContext) {
             NavigationStack {
@@ -235,6 +214,67 @@ struct IdeaCollectionDetailView: View {
                 return lhs.createdAt < rhs.createdAt
             }
     }
+
+    private func createRootIdea(from text: String) {
+        let node = IdeaNode(rawCapture: text)
+        node.title = String(text.prefix(60))
+        node.refinedText = text
+        node.collectionID = collection.id
+        node.collection = collection
+        node.parentID = nil
+        node.parent = nil
+        node.status = "refining"
+        node.nodeType = "idea"
+
+        modelContext.insert(node)
+        try? modelContext.save()
+
+        showingCapture = false
+        selectedRootNode = node
+        
+        Task {
+            await analyzeRootIdea(node)
+        }
+    }
+    
+    private func analyzeRootIdea(_ node: IdeaNode) async {
+        do {
+            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+            let snapshot = IdeaContextBuilder.snapshot(
+                collection: collection,
+                node: node,
+                allNodes: collectionIdeas
+            )
+
+            let prompt = IdeaPromptBuilder.refinementPrompt(
+                for: snapshot,
+                rawInput: node.rawCapture
+            )
+
+            let suggestion = try await FoundationModelIdeaRefiner()
+                .refineSuggestion(prompt: prompt)
+
+            await MainActor.run {
+                node.title = suggestion.title
+                node.refinedText = suggestion.summary
+                node.modelInterpretation = suggestion.interpretation
+                node.modelQuestionsText = suggestion.questions.joined(separator: "\n")
+                node.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
+                node.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
+                node.status = "seed"
+                node.lastAnalyzedAt = Date()
+                node.updatedAt = Date()
+
+                try? modelContext.save()
+            }
+        } catch {
+#if DEBUG
+            print("Root idea analysis failed: \(error.localizedDescription)")
+#endif
+        }
+    }
+
 
     private func exportMarkdown(for collection: IdeaCollection, ideas: [IdeaNode]) -> String {
         var lines: [String] = []

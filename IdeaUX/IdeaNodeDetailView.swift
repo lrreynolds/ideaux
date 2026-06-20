@@ -220,63 +220,16 @@ private let showDebugControls = false
             }
         }
         .sheet(isPresented: $showingAddChild) {
-            NavigationStack {
-                Form {
-                    Section("Child Node") {
-                        TextEditor(text: $childCaptureText)
-                            .frame(minHeight: 160)
-                            .focused($childEditorFocused)
-                            .onAppear {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                    childEditorFocused = true
-                                }
-                            }
-                    }
+            IdeaCaptureSheet(
+                title: "Add Child Idea",
+                sectionTitle: "Idea",
+                onCancel: {
+                    showingAddChild = false
+                },
+                onSave: { text in
+                    createChildIdea(from: text)
                 }
-                .navigationTitle("Add Child Node")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            childEditorFocused = false
-                            childCaptureText = ""
-                            showingAddChild = false
-                        }
-                    }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let text = childCaptureText.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !text.isEmpty else { return }
-
-                            let child = IdeaNode(rawCapture: text)
-                            child.title = String(text.prefix(60))
-                            child.refinedText = text
-                            child.status = "seed"
-                            child.nodeType = "idea"
-                            child.collectionID = collection.id
-                            child.collection = collection
-                            child.parentID = node.id
-                            child.parent = node
-
-                            modelContext.insert(child)
-                            try? modelContext.save()
-
-                            childEditorFocused = false
-                            childCaptureText = ""
-                            showingAddChild = false
-
-                            Task {
-                                await analyze(child)
-
-                                await MainActor.run {
-                                    selectedChildNode = child
-                                }
-                            }
-                        }
-                        .disabled(childCaptureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-            }
+            )
         }
     }
 
@@ -306,6 +259,31 @@ private let showDebugControls = false
 //            title: "Prompt Debug",
 //            text: prompt
 //       )
+    }
+    
+    private func createChildIdea(from text: String) {
+        let child = IdeaNode(rawCapture: text)
+        child.title = String(text.prefix(60))
+        child.refinedText = text
+        child.status = "seed"
+        child.nodeType = "idea"
+        child.collectionID = collection.id
+        child.collection = collection
+        child.parentID = node.id
+        child.parent = node
+
+        modelContext.insert(child)
+        try? modelContext.save()
+
+        showingAddChild = false
+
+        Task {
+            await analyze(child)
+
+            await MainActor.run {
+                selectedChildNode = child
+            }
+        }
     }
 
     private func setStatus(_ status: String) {

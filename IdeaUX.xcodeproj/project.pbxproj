@@ -355,6 +355,8 @@
 				DEVELOPMENT_TEAM = 4L8UAX4EGM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "IdeaUX uses the microphone for voice idea capture.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "IdeaUX uses speech recognition to capture ideas.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -387,6 +389,8 @@
 				DEVELOPMENT_TEAM = 4L8UAX4EGM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "IdeaUX uses the microphone for voice idea capture.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "IdeaUX uses speech recognition to capture ideas.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
