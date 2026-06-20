@@ -26,15 +26,17 @@
 		6E16A4602FE2327C0077EAEA /* Exceptions for "IdeaUX" folder in "IdeaUX" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				IdeaContextBuilderTests.swift,
 				Models/IdeaLink.swift,
+				Tests/IdeaContextBuilderTests.swift,
+				Tests/IdeaTreeImporterTests.swift,
 			);
 			target = 6E16A43B2FE196140077EAEA /* IdeaUX */;
 		};
 		6E74DDD72FE493DE00A688F0 /* Exceptions for "IdeaUX" folder in "IdeaUXTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				IdeaContextBuilderTests.swift,
+				Tests/IdeaContextBuilderTests.swift,
+				Tests/IdeaTreeImporterTests.swift,
 			);
 			target = 6E74DDA92FE493CC00A688F0 /* IdeaUXTests */;
 		};

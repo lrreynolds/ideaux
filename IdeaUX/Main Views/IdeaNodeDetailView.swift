@@ -255,10 +255,10 @@ private let showDebugControls = false
             rawInput: node.rawCapture
         )
 
-//       debugDocument = DebugDocument(
-//            title: "Prompt Debug",
-//            text: prompt
-//       )
+       debugDocument = DebugDocument(
+            title: "Prompt Debug",
+            text: prompt
+       )
     }
     
     private func createChildIdea(from text: String) {
@@ -345,10 +345,10 @@ private let showDebugControls = false
 
     private func analyze(_ targetNode: IdeaNode, updateCoreFields: Bool = true) async {
         await MainActor.run {
-//            debugDocument = DebugDocument(
-//                title: "Analyzing Idea",
-//                text: "Running typed Foundation Model analysis…"
-//            )
+            debugDocument = DebugDocument(
+                title: "Analyzing Idea",
+                text: "Running typed Foundation Model analysis…"
+            )
         }
 
         do {
@@ -406,17 +406,17 @@ private let showDebugControls = false
 
                 try? modelContext.save()
 
-//                debugDocument = DebugDocument(
-//                    title: "Typed Model Output",
-//                    text: output
-//                )
+                debugDocument = DebugDocument(
+                    title: "Typed Model Output",
+                    text: output
+                )
             }
         } catch {
             await MainActor.run {
-//                debugDocument = DebugDocument(
-//                    title: "Model Error",
-//                    text: error.localizedDescription
-//                )
+                debugDocument = DebugDocument(
+                    title: "Model Error",
+                    text: error.localizedDescription
+                )
             }
         }
     }

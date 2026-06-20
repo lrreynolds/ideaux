@@ -4,37 +4,40 @@ import SwiftData
 struct IdeaMarkdownNormalizer {
     static func normalize(_ markdown: String) -> String {
         var lines = markdown.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
 
         // Strip common markdown code fences.
         lines = lines.filter { line in
-            let lower = line.lowercased()
+            let lower = line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return lower != "```" && lower != "```markdown" && lower != "```md"
         }
 
         // Drop leading commentary before a likely collection title.
-        while let first = lines.first, first.isEmpty {
+        while let first = lines.first,
+              first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             lines.removeFirst()
         }
 
         // If no "# " title exists, treat first non-empty plain line as collection title.
-        if let firstNonEmptyIndex = lines.firstIndex(where: { !$0.isEmpty }) {
-            let first = lines[firstNonEmptyIndex]
+        if let firstNonEmptyIndex = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            let first = lines[firstNonEmptyIndex].trimmingCharacters(in: .whitespacesAndNewlines)
             if !first.hasPrefix("#") && !first.lowercased().hasPrefix("purpose:") {
                 lines[firstNonEmptyIndex] = "# \(first)"
             }
         }
 
         // If a "# " heading exists later, drop anything before it.
-        if let firstHeadingIndex = lines.firstIndex(where: { $0.hasPrefix("# ") }) {
+        if let firstHeadingIndex = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("# ") }) {
             lines = Array(lines[firstHeadingIndex...])
         }
 
-        // Normalize bullets.
+        // Normalize bullets while preserving indentation.
         lines = lines.map { line in
-            if line.hasPrefix("* ") { return "- " + line.dropFirst(2) }
-            if line.hasPrefix("+ ") { return "- " + line.dropFirst(2) }
-            if line.hasPrefix("• ") { return "- " + line.dropFirst(2) }
+            let indent = String(line.prefix { $0 == " " || $0 == "\t" })
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.hasPrefix("* ") { return indent + "- " + trimmed.dropFirst(2) }
+            if trimmed.hasPrefix("+ ") { return indent + "- " + trimmed.dropFirst(2) }
+            if trimmed.hasPrefix("• ") { return indent + "- " + trimmed.dropFirst(2) }
             return line
         }
 
@@ -42,9 +45,10 @@ struct IdeaMarkdownNormalizer {
         var normalized: [String] = []
 
         for index in lines.indices {
-            let line = lines[index]
-            let previous = index > lines.startIndex ? lines[lines.index(before: index)] : ""
-            let next = index < lines.index(before: lines.endIndex) ? lines[lines.index(after: index)] : ""
+            let rawLine = lines[index]
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            let previous = index > lines.startIndex ? lines[lines.index(before: index)].trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            let next = index < lines.index(before: lines.endIndex) ? lines[lines.index(after: index)].trimmingCharacters(in: .whitespacesAndNewlines) : ""
 
             let isHeading = line.hasPrefix("#")
             let isBullet = line.hasPrefix("- ")
@@ -65,15 +69,15 @@ struct IdeaMarkdownNormalizer {
             if looksLikeBareSection {
                 normalized.append("## \(line)")
             } else {
-                normalized.append(line)
+                normalized.append(rawLine)
             }
         }
 
         // Remove empty leading/trailing lines.
-        while normalized.first?.isEmpty == true {
+        while normalized.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
             normalized.removeFirst()
         }
-        while normalized.last?.isEmpty == true {
+        while normalized.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
             normalized.removeLast()
         }
 
@@ -113,6 +117,7 @@ struct IdeaTreeImporter {
         // Track the last created nodes for hierarchy inference
         var lastRoot: IdeaNode? = nil
         var lastHeading: IdeaNode? = nil // latest heading (## or ###)
+        var lastCreatedNode: IdeaNode? = nil
         
         func clean(_ s: String) -> String {
             s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -154,6 +159,7 @@ struct IdeaTreeImporter {
                 context.insert(node)
                 lastRoot = node
                 lastHeading = node
+                lastCreatedNode = node
             } else if line.hasPrefix("### ") {
                 // Child of latest root (heading-level child)
                 let text = clean(String(line.dropFirst(4)))
@@ -172,9 +178,15 @@ struct IdeaTreeImporter {
                 )
                 context.insert(node)
                 lastHeading = node
+                lastCreatedNode = node
             } else if line.hasPrefix("- ") {
-                // Bullet: child of latest heading node
                 let text = clean(String(line.dropFirst(2)))
+
+                if applyInlineMetadata(text, to: lastCreatedNode) {
+                    continue
+                }
+
+                // Bullet: child of latest heading node
                 let node = IdeaNode(
                     rawCapture: text,
                     title: text,
@@ -189,6 +201,7 @@ struct IdeaTreeImporter {
                     
                 )
                 context.insert(node)
+                lastCreatedNode = node
             } else {
                 // Unrecognized line; ignore to keep import simple
                 continue
@@ -229,6 +242,7 @@ struct IdeaTreeImporter {
         var keyConcepts = ""
         var background = ""
         var refinement = ""
+        var collectionSummary = ""
         
         // First pass: read collection metadata and title
         for raw in lines {
@@ -239,6 +253,7 @@ struct IdeaTreeImporter {
             else if line.lowercased().hasPrefix("key concepts:") { keyConcepts = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
             else if line.lowercased().hasPrefix("background context:") { background = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
             else if line.lowercased().hasPrefix("refinement instructions:") { refinement = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
+            else if !line.isEmpty && !line.hasPrefix("#") && !line.hasPrefix("-") && collectionSummary.isEmpty { collectionSummary = line }
         }
         
         func uniqueCollectionName(base: String, existingNames: Set<String>) -> String {
@@ -257,7 +272,7 @@ struct IdeaTreeImporter {
 
         let collection: IdeaCollection
         if let existing, mode == .replaceExisting {
-            existing.summary = ""
+            existing.summary = collectionSummary
             existing.purpose = purpose
             existing.goalsText = goals
             existing.keyConceptsText = keyConcepts
@@ -283,7 +298,7 @@ struct IdeaTreeImporter {
             let newName = existing == nil ? title : uniqueCollectionName(base: title, existingNames: existingNames)
             let newCollection = IdeaCollection(
                 name: newName,
-                summary: "",
+                summary: collectionSummary,
                 iconName: "lightbulb",
                 purpose: purpose,
                 goalsText: goals,
@@ -296,8 +311,17 @@ struct IdeaTreeImporter {
         }
             
             // Track latest heading nodes by level and global sort order
-            var latestNodeByLevel: [Int: IdeaNode] = [:] // 2 => ##, 3 => ###, 4 => ####
-            var orderCounter: Int = 0
+        var latestNodeByLevel: [Int: IdeaNode] = [:]
+        var latestBulletByIndent: [Int: IdeaNode] = [:]
+        var orderCounter: Int = 0
+        var lastCreatedNode: IdeaNode? = nil
+        
+            func bulletIndentLevel(from raw: String) -> Int {
+                let leadingWhitespace = raw.prefix { $0 == " " || $0 == "\t" }
+                return leadingWhitespace.reduce(0) { total, character in
+                total + (character == "\t" ? 4 : 1)
+            }
+        }
             
             func makeHeading(text: String, level: Int) {
                 let parent: IdeaNode?
@@ -327,15 +351,26 @@ struct IdeaTreeImporter {
                     node.parent = parent
                 }
 
+                lastCreatedNode = node
                 latestNodeByLevel[level] = node
                 for deeper in (level + 1)...6 {
                     latestNodeByLevel.removeValue(forKey: deeper)
                 }
+                latestBulletByIndent.removeAll()
             }
             
-            func makeBullet(text: String) {
-                let parent = latestNodeByLevel[4] ?? latestNodeByLevel[3] ?? latestNodeByLevel[2]
+        func makeBullet(text: String, indentLevel: Int) {
+                if applyInlineMetadata(text, to: lastCreatedNode) {
+                    return
+                }
 
+            let parentFromIndent = latestBulletByIndent
+                .filter { $0.key < indentLevel }
+                .sorted { $0.key > $1.key }
+                .first?.value
+            
+             let parent = parentFromIndent ?? latestNodeByLevel[4] ?? latestNodeByLevel[3] ?? latestNodeByLevel[2]
+            
                 let node = IdeaNode(
                     rawCapture: text,
                     title: text,
@@ -355,10 +390,18 @@ struct IdeaTreeImporter {
                 if let parent {
                     node.parent = parent
                 }
+
+                lastCreatedNode = node
+            latestBulletByIndent[indentLevel] = node
+
+            for deeperIndent in latestBulletByIndent.keys where deeperIndent > indentLevel {
+                latestBulletByIndent.removeValue(forKey: deeperIndent)
+            }
             }
             
             // Second pass: build outline
             for raw in lines {
+                let indentLevel = bulletIndentLevel(from: raw)
                 let line = clean(raw)
                 guard !line.isEmpty else { continue }
                 if line.hasPrefix("# ") { continue } // already handled title
@@ -372,7 +415,7 @@ struct IdeaTreeImporter {
                 } else if line.hasPrefix("#### ") {
                     makeHeading(text: clean(String(line.dropFirst(5))), level: 4)
                 } else if line.hasPrefix("- ") {
-                    makeBullet(text: clean(String(line.dropFirst(2))))
+                    makeBullet(text: clean(String(line.dropFirst(2))), indentLevel: indentLevel)
                 }
             }
             
@@ -392,4 +435,41 @@ struct IdeaTreeImporter {
                 return nil
             }
         }
+
+    private static func applyInlineMetadata(_ text: String, to node: IdeaNode?) -> Bool {
+        guard let node else { return false }
+
+        let lower = text.lowercased()
+
+        if lower.hasPrefix("summary:") {
+            let value = String(text.dropFirst("Summary:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { return true }
+
+            node.refinedText = value
+            node.summary = value
+            node.updatedAt = Date()
+            return true
+        }
+
+        if lower.hasPrefix("refined:") {
+            let value = String(text.dropFirst("Refined:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { return true }
+
+            node.refinedText = value
+            node.summary = value
+            node.updatedAt = Date()
+            return true
+        }
+
+        if lower.hasPrefix("original:") {
+            let value = String(text.dropFirst("Original:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { return true }
+
+            node.rawCapture = value
+            node.updatedAt = Date()
+            return true
+        }
+
+        return false
     }
+}
