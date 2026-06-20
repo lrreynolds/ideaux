@@ -23,17 +23,25 @@ struct IdeaNodeDetailView: View {
     @State private var showingEditCore = false
     @State private var editTitleText = ""
     @State private var editSummaryText = ""
+    @State private var showingRelatedDetails = false
+    @State private var isAnalyzing = false
     @FocusState private var childEditorFocused: Bool
  
    
     
     @State private var debugDocument: DebugDocument?
+    
+#if DEBUG
+private let showDebugControls = true
+#else
+private let showDebugControls = false
+#endif
 
     var body: some View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(node.title.isEmpty ? String(node.rawCapture.prefix(80)) : node.title)
-                        .font(.headline)
+                        .font(.title3)
                         .fontWeight(.bold)
                         .padding()
 
@@ -56,73 +64,74 @@ struct IdeaNodeDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if isAnalyzing {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Analyzing updated idea…")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
-                    IdeaDetailSection(title: "Original") {
-                    Text(node.rawCapture)
-                }
-
-            IdeaDetailSection(title: "Interpretation") {
-                Text(node.modelInterpretation.isEmpty ? "Not analyzed yet." : node.modelInterpretation)
-                }
 
             IdeaDetailSection(title: "Summary") {
                 Text(node.refinedText.isEmpty ? "No summary yet." : node.refinedText)
-                }
+            }
 
-// REMOVED: Questions, Related Ideas, Possible Next Steps sections
-                
-
-            VStack(spacing: 12) {
-                Button {
-                    acceptCoreIdea()
-                } label: {
-                    Label("Accept Title & Summary", systemImage: "checkmark.circle")
-                        .frame(maxWidth: .infinity)
+            HStack(spacing: 16) {
+                if node.status != "refined" {
+                    Button {
+                        acceptCoreIdea()
+                        showingRelatedDetails = true
+                    } label: {
+                        Label("Looks Good", systemImage: "hand.thumbsup")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(node.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(node.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Button {
                     editTitleText = node.title
                     editSummaryText = node.refinedText
                     showingEditCore = true
                 } label: {
-                    Label("Edit Title & Summary", systemImage: "pencil")
+                    Label("Edit", systemImage: "hand.thumbsdown")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+            }
 
-                Button {
-                    Task {
-                        await testFoundationModel()
+            if showingRelatedDetails || node.status == "refined" {
+                IdeaDetailSection(title: "Questions") {
+                    IdeaTextList(text: node.modelQuestionsText, emptyText: "No questions yet.")
+                }
+
+                IdeaDetailSection(title: "Related Ideas") {
+                    IdeaTextList(text: node.modelRelatedIdeasText, emptyText: "No related ideas yet.")
+                }
+
+                IdeaDetailSection(title: "Possible Next Steps") {
+                    IdeaTextList(text: node.modelNextStepsText, emptyText: "No next steps yet.")
+                }
+            }
+                
+
+            VStack(spacing: 12) {
+
+                if showDebugControls {
+                    Button {
+                        showContextDebug()
+                    } label: {
+                        Label("Prompt Debug", systemImage: "doc.text")
+                            .frame(maxWidth: .infinity)
                     }
-                } label: {
-                    Label("Re-analyze Idea", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
-                Button {
-                    showingAddChild = true
-                } label: {
-                    Label("Add Child Idea", systemImage: "plus.rectangle.on.folder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
-                Button {
-                    showContextDebug()
-                } label: {
-                    Label("Prompt Debug", systemImage: "doc.text")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
 
                 Button(role: .destructive) {
                     modelContext.delete(node)
@@ -196,8 +205,16 @@ struct IdeaNodeDetailView: View {
                         Button("Save") {
                             saveCoreEdits()
                             showingEditCore = false
+
+                            Task {
+                                isAnalyzing = true
+                                await analyze(node, updateCoreFields: false)
+                                await MainActor.run {
+                                    isAnalyzing = false
+                                    showingRelatedDetails = true
+                                }
+                            }
                         }
-                        .disabled(editTitleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
             }
@@ -285,10 +302,10 @@ struct IdeaNodeDetailView: View {
             rawInput: node.rawCapture
         )
 
-        debugDocument = DebugDocument(
-            title: "Prompt Debug",
-            text: prompt
-        )
+//       debugDocument = DebugDocument(
+//            title: "Prompt Debug",
+//            text: prompt
+//       )
     }
 
     private func setStatus(_ status: String) {
@@ -303,6 +320,7 @@ struct IdeaNodeDetailView: View {
     private func acceptCoreIdea() {
         node.status = "refined"
         node.updatedAt = Date()
+        showingRelatedDetails = true
         try? modelContext.save()
     }
 
@@ -310,13 +328,28 @@ struct IdeaNodeDetailView: View {
         let title = editTitleText.trimmingCharacters(in: .whitespacesAndNewlines)
         let summary = editSummaryText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !title.isEmpty else { return }
-
-        node.title = title
+        node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
         node.refinedText = summary
         node.status = "refined"
         node.updatedAt = Date()
+        showingRelatedDetails = true
         try? modelContext.save()
+    }
+
+    private func saveCoreEditsAndReanalyze() async {
+        let title = editTitleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary = editSummaryText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        await MainActor.run {
+            node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
+            node.refinedText = summary
+            node.status = "refined"
+            node.updatedAt = Date()
+            showingRelatedDetails = true
+            try? modelContext.save()
+        }
+
+        await analyze(node, updateCoreFields: false)
     }
 
     private func makeCurrentSnapshot() -> IdeaContextSnapshot {
@@ -332,12 +365,12 @@ struct IdeaNodeDetailView: View {
  
 
 
-    private func analyze(_ targetNode: IdeaNode) async {
+    private func analyze(_ targetNode: IdeaNode, updateCoreFields: Bool = true) async {
         await MainActor.run {
-            debugDocument = DebugDocument(
-                title: "Analyzing Idea",
-                text: "Running typed Foundation Model analysis…"
-            )
+//            debugDocument = DebugDocument(
+//                title: "Analyzing Idea",
+//                text: "Running typed Foundation Model analysis…"
+//            )
         }
 
         do {
@@ -381,9 +414,12 @@ struct IdeaNodeDetailView: View {
             """
 
             await MainActor.run {
-                targetNode.title = suggestion.title
+                if updateCoreFields {
+                    targetNode.title = suggestion.title
+                    targetNode.refinedText = suggestion.summary
+                }
+
                 targetNode.modelInterpretation = suggestion.interpretation
-                targetNode.refinedText = suggestion.summary
                 targetNode.modelQuestionsText = suggestion.questions.joined(separator: "\n")
                 targetNode.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
                 targetNode.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
@@ -392,17 +428,17 @@ struct IdeaNodeDetailView: View {
 
                 try? modelContext.save()
 
-                debugDocument = DebugDocument(
-                    title: "Typed Model Output",
-                    text: output
-                )
+//                debugDocument = DebugDocument(
+//                    title: "Typed Model Output",
+//                    text: output
+//                )
             }
         } catch {
             await MainActor.run {
-                debugDocument = DebugDocument(
-                    title: "Model Error",
-                    text: error.localizedDescription
-                )
+//                debugDocument = DebugDocument(
+//                    title: "Model Error",
+//                    text: error.localizedDescription
+//                )
             }
         }
     }
