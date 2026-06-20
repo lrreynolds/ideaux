@@ -40,10 +40,20 @@ private let showDebugControls = false
     var body: some View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
+                    IdeaHierarchyPathView(items: hierarchyPathItems) { item in
+                        if let pathNode = item.node {
+                            selectedChildNode = pathNode
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .padding(.horizontal)
+
                     Text(node.title.isEmpty ? String(node.rawCapture.prefix(80)) : node.title)
                         .font(.title3)
                         .fontWeight(.bold)
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
 
                     HStack(spacing: 10) {
                         Text(statusLabel)
@@ -85,7 +95,7 @@ private let showDebugControls = false
                         acceptCoreIdea()
                         showingRelatedDetails = true
                     } label: {
-                        Label("Looks Good", systemImage: "hand.thumbsup")
+                        Label("Approve", systemImage: "hand.thumbsup")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -104,6 +114,7 @@ private let showDebugControls = false
                 .buttonStyle(.bordered)
                 .controlSize(.large)
             }
+            .padding(.horizontal)
 
             if showingRelatedDetails || node.status == "refined" {
                 IdeaDetailSection(title: "Questions") {
@@ -231,6 +242,48 @@ private let showDebugControls = false
                 }
             )
         }
+    }
+
+    private var hierarchyPathItems: [IdeaHierarchyPathItem] {
+        var items = [
+            IdeaHierarchyPathItem(
+                id: collection.id.uuidString,
+                title: collection.name,
+                node: nil
+            )
+        ]
+
+        let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+        var currentParentID = node.parentID
+        var parents: [IdeaNode] = []
+
+        while let parentID = currentParentID,
+              let parent = collectionIdeas.first(where: { $0.id == parentID }) {
+            parents.insert(parent, at: 0)
+            currentParentID = parent.parentID
+        }
+
+        items.append(
+            contentsOf: parents.map {
+                IdeaHierarchyPathItem(
+                    id: $0.id.uuidString,
+                    title: titleForPath($0),
+                    node: $0
+                )
+            }
+        )
+
+        return items
+    }
+
+    private func titleForPath(_ node: IdeaNode) -> String {
+        let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+
+        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty { return String(raw.prefix(48)) }
+
+        return "Untitled"
     }
 
     private var statusLabel: String {
@@ -532,6 +585,63 @@ struct IdeaTextList: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct IdeaHierarchyPathItem: Identifiable {
+    let id: String
+    let title: String
+    let node: IdeaNode?
+}
+
+struct IdeaHierarchyPathView: View {
+    let items: [IdeaHierarchyPathItem]
+    let onSelect: (IdeaHierarchyPathItem) -> Void
+
+    var body: some View {
+        if !items.isEmpty {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            Button {
+                                onSelect(item)
+                            } label: {
+                                Text(item.title)
+                                    .font(.caption)
+                                    .fontWeight(index == items.count - 1 ? .semibold : .regular)
+                                    .foregroundStyle(index == items.count - 1 ? .primary : .secondary)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
+                            .id(item.id)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onAppear {
+                    scrollToLastItem(using: proxy)
+                }
+                .onChange(of: items.map(\.id)) { _, _ in
+                    scrollToLastItem(using: proxy)
+                }
+            }
+            .accessibilityLabel(items.map(\.title).joined(separator: " > "))
+        }
+    }
+
+    private func scrollToLastItem(using proxy: ScrollViewProxy) {
+        guard let lastID = items.last?.id else { return }
+
+        DispatchQueue.main.async {
+            proxy.scrollTo(lastID, anchor: .trailing)
         }
     }
 }
