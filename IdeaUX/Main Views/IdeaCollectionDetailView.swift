@@ -18,6 +18,7 @@ struct IdeaCollectionDetailView: View {
     @State private var showingCapture = false
     @State private var showingContext = false
     @State private var selectedRootNode: IdeaNode?
+    @State private var isReviewingCollection = false
 
     var body: some View {
         let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
@@ -60,13 +61,26 @@ struct IdeaCollectionDetailView: View {
             IdeaNodeDetailView(node: node, collection: collection)
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingCapture = true
-                    } label: {
-                        Label("Capture Idea", systemImage: "plus")
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    Task {
+                        await reviewCollection()
+                    }
+                } label: {
+                    if isReviewingCollection {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "sparkles")
                     }
                 }
+                .disabled(isReviewingCollection)
+
+                Button {
+                    showingCapture = true
+                } label: {
+                    Label("Capture Idea", systemImage: "plus")
+                }
+            }
         }
         .sheet(isPresented: $showingCapture) {
             IdeaCaptureSheet(
@@ -206,6 +220,84 @@ struct IdeaCollectionDetailView: View {
         } catch {
 #if DEBUG
             print("Root idea analysis failed: \(error.localizedDescription)")
+#endif
+        }
+    }
+
+    private func reviewCollection() async {
+        guard !isReviewingCollection else { return }
+
+        await MainActor.run {
+            isReviewingCollection = true
+        }
+
+        defer {
+            Task { @MainActor in
+                isReviewingCollection = false
+            }
+        }
+
+        do {
+            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+            let snapshot = CollectionReviewSnapshotBuilder.snapshot(
+                collection: collection,
+                allNodes: collectionIdeas
+            )
+
+            let result = try await CollectionReviewer().review(
+                snapshot: snapshot
+            )
+
+#if DEBUG
+            print("\n====================")
+            print("COLLECTION REVIEW")
+            print("====================")
+            print("Updates Returned: \(result.nodeUpdates.count)")
+
+            for update in result.nodeUpdates {
+                print("Node: \(update.nodeID)")
+                print("Status: \(update.recommendedStatus)")
+                print("Reason: \(update.reason)")
+                print("---")
+            }
+
+            print("====================\n")
+#endif
+
+            await MainActor.run {
+                for update in result.nodeUpdates {
+                    guard let nodeID = UUID(uuidString: update.nodeID) else {
+                        continue
+                    }
+
+                    guard let node = collectionIdeas.first(where: { $0.id == nodeID }) else {
+                        continue
+                    }
+
+                    guard node.status.lowercased() != "implemented" else {
+                        continue
+                    }
+
+                    switch update.recommendedStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                    case "question":
+                        node.status = "question"
+                    case "actionable":
+                        node.status = "actionable"
+                    case "none":
+                        node.status = "refined"
+                    default:
+                        break
+                    }
+
+                    node.updatedAt = Date()
+                }
+
+                try? modelContext.save()
+            }
+        } catch {
+#if DEBUG
+            print("Collection review failed: \(error)")
 #endif
         }
     }

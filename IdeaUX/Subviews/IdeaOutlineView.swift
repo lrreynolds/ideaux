@@ -50,6 +50,7 @@ struct IdeaOutlineView: View {
                         node: node,
                         depth: depth,
                         hasChildren: hasChildren,
+                        displayStatus: effectiveStatus(for: node, in: all),
                         isExpanded: Binding(
                             get: { expanded.contains(node.id) },
                             set: { newValue in
@@ -71,6 +72,57 @@ struct IdeaOutlineView: View {
                 }
             }
         )
+    }
+
+    private func effectiveStatus(for node: IdeaNode, in all: [IdeaNode]) -> String {
+        let ownStatus = normalizedStatus(for: node)
+
+        if expanded.contains(node.id) {
+            return ownStatus
+        }
+
+        let descendants = descendants(of: node, in: all)
+        let descendantStatuses = descendants.map { normalizedStatus(for: $0) }
+
+        if ownStatus == "implemented" { return "implemented" }
+        if ownStatus == "actionable" { return "actionable" }
+        if ownStatus == "question" { return "question" }
+
+        if descendantStatuses.contains("question") { return "question" }
+        if descendantStatuses.contains("actionable") { return "actionable" }
+        if !descendants.isEmpty && descendantStatuses.allSatisfy({ $0 == "implemented" }) { return "implemented" }
+
+        return ownStatus
+    }
+
+    private func normalizedStatus(for node: IdeaNode) -> String {
+        let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let type = node.nodeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if status == "implemented" || status == "done" { return "implemented" }
+        if status == "actionable" { return "actionable" }
+        if status == "question" || type == "question" { return "question" }
+        if hasMeaningfulRefinement(node) { return "refined" }
+        return "seed"
+    }
+
+    private func descendants(of node: IdeaNode, in all: [IdeaNode]) -> [IdeaNode] {
+        let directChildren = children(of: node, in: all)
+        return directChildren + directChildren.flatMap { descendants(of: $0, in: all) }
+    }
+
+    private func hasMeaningfulRefinement(_ node: IdeaNode) -> Bool {
+        let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
+        let refined = node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary = node.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let interpretation = node.modelInterpretation.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !interpretation.isEmpty { return true }
+        if !summary.isEmpty && summary != title && summary != raw { return true }
+        if !refined.isEmpty && refined != title && refined != raw { return true }
+
+        return false
     }
 
     private func children(of node: IdeaNode, in all: [IdeaNode]) -> [IdeaNode] {

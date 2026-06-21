@@ -5,14 +5,21 @@ struct IdeaNodeOutlineRow: View {
     let node: IdeaNode
     let depth: Int
     let hasChildren: Bool
+    let displayStatus: String?
     @Binding var isExpanded: Bool
 
+    private var effectiveStatus: String {
+        (displayStatus ?? node.status)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
     var statusSymbol: String {
-        if node.status.lowercased() == "question" || node.nodeType.lowercased() == "question" {
+        if effectiveStatus == "question" || node.nodeType.lowercased() == "question" {
             return "?"
         }
 
-        switch node.status.lowercased() {
+        switch effectiveStatus {
         case "done", "implemented":
             return "✓"
         case "actionable":
@@ -28,11 +35,11 @@ struct IdeaNodeOutlineRow: View {
     }
 
     var statusColor: Color {
-        if node.status.lowercased() == "question" || node.nodeType.lowercased() == "question" {
+        if effectiveStatus == "question" || node.nodeType.lowercased() == "question" {
             return .red
         }
 
-        switch node.status.lowercased() {
+        switch effectiveStatus {
         case "done", "implemented":
             return .secondary
         case "actionable":
@@ -112,7 +119,7 @@ struct IdeaNodeOutlineRow: View {
 
             Text(statusSymbol)
                 .foregroundStyle(statusColor)
-                .fontWeight((node.status.lowercased() == "question" || node.nodeType.lowercased() == "question") ? .bold : .regular)
+                .fontWeight((effectiveStatus == "question" || node.nodeType.lowercased() == "question") ? .bold : .regular)
                 .frame(width: 22, alignment: .center)
 
             VStack(alignment: .leading, spacing: 2) {
