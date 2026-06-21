@@ -72,10 +72,18 @@ struct IdeaPromptBuilder {
         2. A short summary explaining what this node seems to mean.
         3. Helpful questions the user might consider.
         4. Related ideas that could naturally connect to this node.
-        5. Possible next steps, only if they are lightweight and useful.
+        5. A recommended status: question, actionable, or none.
+        6. Possible next steps, only if they are lightweight and useful.
+
+        STATUS CLASSIFICATION
+
+        Use "question" only when the node is primarily asking something that needs an answer or clarification.
+        Use "actionable" only when the node describes a concrete task, decision, implementation, or next action.
+        Use "none" when the node is an idea, concept, observation, or discussion that is not ready for action.
+        Do not mark a node actionable just because next steps could be imagined.
+        Do not mark a node as question just because it has related questions.
 
         Avoid generic product strategy.
-        Avoid creating unnecessary work.
         Prefer optional suggestions over assignments.
         Stay close to the user's original wording.
         """
@@ -202,6 +210,17 @@ struct FoundationModelIdeaRefiner {
         Stay close to the original idea.
 
         When in doubt, preserve the author's intent.
+
+        Classify the current node carefully.
+
+        Use recommendedStatus = question only when the node itself is primarily an unanswered question.
+
+        Use recommendedStatus = actionable only when the node describes something the user could reasonably do next.
+
+        Use recommendedStatus = none for ideas, observations, concepts, or topics that are not yet actionable.
+
+        Never use implemented or done. Completion is a user decision.
+
         """)
 
         let response = try await session.respond(

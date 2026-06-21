@@ -16,7 +16,6 @@ struct IdeaCollectionDetailView: View {
     @Query(sort: \IdeaNode.createdAt, order: .reverse) private var allIdeas: [IdeaNode]
 
     @State private var showingCapture = false
-    @State private var expanded: Set<UUID> = []
     @State private var showingContext = false
     @State private var selectedRootNode: IdeaNode?
 
@@ -47,30 +46,10 @@ struct IdeaCollectionDetailView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                
-
-                VStack(alignment: .leading, spacing: 10) {
-                 
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        let roots = collectionIdeas
-                            .filter { $0.parentID == nil }
-                            .sorted { lhs, rhs in
-                                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
-                                return lhs.createdAt < rhs.createdAt
-                            }
-
-                        if roots.isEmpty {
-                            Text("No ideas captured yet.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(roots, id: \.persistentModelID) { root in
-                                outlineNode(root, all: collectionIdeas, depth: 0)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                IdeaOutlineView(
+                    collection: collection,
+                    ideas: collectionIdeas
+                )
 
             }
             .padding()
@@ -171,50 +150,6 @@ struct IdeaCollectionDetailView: View {
         }
     }
 
-    private func outlineNode(_ node: IdeaNode, all: [IdeaNode], depth: Int) -> AnyView {
-        let kids = children(of: node, in: all)
-        let hasChildren = !kids.isEmpty
-
-        return AnyView(
-            VStack(alignment: .leading, spacing: 0) {
-                NavigationLink {
-                    IdeaNodeDetailView(node: node, collection: collection)
-                } label: {
-                    IdeaNodeOutlineRow(
-                        node: node,
-                        depth: depth,
-                        hasChildren: hasChildren,
-                        isExpanded: Binding(
-                            get: { expanded.contains(node.id) },
-                            set: { newValue in
-                                if newValue {
-                                    expanded.insert(node.id)
-                                } else {
-                                    expanded.remove(node.id)
-                                }
-                            }
-                        )
-                    )
-                }
-                .buttonStyle(.plain)
-
-                if hasChildren && expanded.contains(node.id) {
-                    ForEach(kids, id: \.persistentModelID) { child in
-                        outlineNode(child, all: all, depth: depth + 1)
-                    }
-                }
-            }
-        )
-    }
-
-    private func children(of node: IdeaNode, in all: [IdeaNode]) -> [IdeaNode] {
-        all.filter { $0.parentID == node.id }
-            .sorted { lhs, rhs in
-                if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
-                return lhs.createdAt < rhs.createdAt
-            }
-    }
-
     private func createRootIdea(from text: String) {
         let node = IdeaNode(rawCapture: text)
         node.title = String(text.prefix(60))
@@ -257,12 +192,12 @@ struct IdeaCollectionDetailView: View {
 
             await MainActor.run {
                 node.title = suggestion.title
+                applyRecommendedStatus(from: suggestion, to: node)
                 node.refinedText = suggestion.summary
                 node.modelInterpretation = suggestion.interpretation
                 node.modelQuestionsText = suggestion.questions.joined(separator: "\n")
                 node.modelRelatedIdeasText = suggestion.relatedIdeas.joined(separator: "\n")
                 node.modelNextStepsText = suggestion.possibleNextSteps.joined(separator: "\n")
-                node.status = "seed"
                 node.lastAnalyzedAt = Date()
                 node.updatedAt = Date()
 
@@ -275,7 +210,18 @@ struct IdeaCollectionDetailView: View {
         }
     }
 
+    private func applyRecommendedStatus(from suggestion: IdeaRefinementSuggestion, to node: IdeaNode) {
+        guard node.status != "implemented" else { return }
 
+        switch suggestion.recommendedStatus.lowercased() {
+        case "question":
+            node.status = "question"
+        case "actionable":
+            node.status = "actionable"
+        default:
+            node.status = "refined"
+        }
+    }
 }
 
 private struct ContextSection: View {

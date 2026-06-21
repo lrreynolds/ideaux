@@ -31,6 +31,7 @@ struct IdeaNodeDetailView: View {
     
     @State private var debugDocument: DebugDocument?
     
+    
 #if DEBUG
 private let showDebugControls = true
 #else
@@ -59,15 +60,13 @@ private let showDebugControls = false
                         Text(statusLabel)
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.green.opacity(0.15))
-                            .clipShape(Capsule())
 
                         Text(node.createdAt, style: .date)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                }
+                    }
+                    .padding(.horizontal)
+
 
                     if let lastAnalyzedAt = node.lastAnalyzedAt {
                         Text("Analyzed \(lastAnalyzedAt, style: .relative) ago")
@@ -88,32 +87,49 @@ private let showDebugControls = false
             IdeaDetailSection(title: "Summary") {
                 Text(node.refinedText.isEmpty ? "No summary yet." : node.refinedText)
             }
+            
+            IdeaDetailSection(title: "Mark As") {
+                HStack(spacing: 12) {
 
-            HStack(spacing: 16) {
-                if node.status != "refined" {
                     Button {
-                        acceptCoreIdea()
-                        showingRelatedDetails = true
+                        setStatus("question")
                     } label: {
-                        Label("Approve", systemImage: "hand.thumbsup")
+                        Label("Question", systemImage: "questionmark.circle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(node.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+                    .tint(node.status == "question" ? .red : .gray.opacity(0.4))
 
-                Button {
-                    editTitleText = node.title
-                    editSummaryText = node.refinedText
-                    showingEditCore = true
-                } label: {
-                    Label("Edit", systemImage: "hand.thumbsdown")
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        setStatus("actionable")
+                    } label: {
+                        Label("Todo", systemImage: "bolt.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(node.status == "actionable" ? .blue : .gray.opacity(0.4))
+
+                    Button {
+                        setStatus("implemented")
+                    } label: {
+                        Label("Done", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(node.status == "implemented" ? .green : .gray.opacity(0.4))
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
+
+            Button {
+                editTitleText = node.title
+                editSummaryText = node.refinedText
+                showingEditCore = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
             .padding(.horizontal)
 
             if showingRelatedDetails || node.status == "refined" {
@@ -288,15 +304,14 @@ private let showDebugControls = false
 
     private var statusLabel: String {
         switch node.status.lowercased() {
-        case "seed": "🌱 Seed"
-        case "exploring": "🔎 Exploring"
-        case "refining", "growing": "🌿 Refining"
-        case "actionable": "● Actionable"
-        case "implemented": "✓ Implemented"
-        case "validated": "★ Validated"
-        case "rejected": "✕ Rejected"
-        case "archived": "📦 Archived"
-        default: node.status.capitalized
+        case "question":
+            return "❓ Question"
+        case "actionable":
+            return "⚡ Todo"
+        case "implemented":
+            return "✓ Done"
+        default:
+            return "🌿 Refined"
         }
     }
     
@@ -342,16 +357,11 @@ private let showDebugControls = false
     private func setStatus(_ status: String) {
         node.status = status
         node.updatedAt = Date()
+
         if status == "implemented" {
             node.implementedAt = Date()
         }
-        try? modelContext.save()
-    }
 
-    private func acceptCoreIdea() {
-        node.status = "refined"
-        node.updatedAt = Date()
-        showingRelatedDetails = true
         try? modelContext.save()
     }
 
@@ -361,7 +371,6 @@ private let showDebugControls = false
 
         node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
         node.refinedText = summary
-        node.status = "refined"
         node.updatedAt = Date()
         showingRelatedDetails = true
         try? modelContext.save()
@@ -374,7 +383,6 @@ private let showDebugControls = false
         await MainActor.run {
             node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
             node.refinedText = summary
-            node.status = "refined"
             node.updatedAt = Date()
             showingRelatedDetails = true
             try? modelContext.save()
@@ -434,6 +442,9 @@ private let showDebugControls = false
             Summary:
             \(suggestion.summary)
 
+            Recommended Status:
+            \(suggestion.recommendedStatus)
+
             Questions:
             \(suggestion.questions.map { "- \($0)" }.joined(separator: "\n"))
 
@@ -449,6 +460,8 @@ private let showDebugControls = false
                     targetNode.title = suggestion.title
                     targetNode.refinedText = suggestion.summary
                 }
+
+                applyRecommendedStatus(from: suggestion, to: targetNode)
 
                 targetNode.modelInterpretation = suggestion.interpretation
                 targetNode.modelQuestionsText = suggestion.questions.joined(separator: "\n")
@@ -471,6 +484,19 @@ private let showDebugControls = false
                     text: error.localizedDescription
                 )
             }
+        }
+    }
+
+    private func applyRecommendedStatus(from suggestion: IdeaRefinementSuggestion, to targetNode: IdeaNode) {
+        guard targetNode.status.lowercased() != "implemented" else { return }
+
+        switch suggestion.recommendedStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "question":
+            targetNode.status = "question"
+        case "actionable":
+            targetNode.status = "actionable"
+        default:
+            targetNode.status = "refined"
         }
     }
 

@@ -28,9 +28,31 @@ struct IdeaRefinementSuggestion {
 
     @Guide(description: "Exactly three related ideas that naturally connect to this node. Each item maximum 48 characters.")
     let relatedIdeas: [String]
+    
+    @Guide(description: """
+    Classification of this node.
 
-    @Guide(description: "Exactly three lightweight possible next steps. Each item maximum 80 characters.")
+    Use:
+    - question = primarily seeking an answer
+    - actionable = describes a concrete task, decision, implementation, or next action
+    - none = idea, concept, observation, or discussion that is not yet actionable
+
+    Return only: question, actionable, or none
+    """)
+    let recommendedStatus: String
+
+    @Guide(description: """
+    Exactly three lightweight possible next steps.
+
+    If the node is actionable, these should be concrete actions.
+    If the node is a question, these should help answer it.
+    If neither applies, suggest exploratory next steps.
+
+    Each item maximum 80 characters.
+    """)
     let possibleNextSteps: [String]
+    
+
 
 }
 #endif
