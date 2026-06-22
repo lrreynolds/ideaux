@@ -59,7 +59,7 @@ struct CollectionSynthesizer {
         TASK
 
         Produce:
-        1. A concise collection summary.
+        1. An evolving collection description.
         2. Key concepts emerging across reviewed branches.
         3. Background context that would help future idea refinement.
 

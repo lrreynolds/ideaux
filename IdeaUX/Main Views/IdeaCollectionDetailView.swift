@@ -281,7 +281,7 @@ struct IdeaCollectionDetailView: View {
             let suggestion = try await CollectionSynthesizer().synthesize(snapshot: snapshot)
 
             await MainActor.run {
-                collection.synthesizedDescription = suggestion.summary
+                collection.synthesizedDescription = suggestion.description
                 collection.synthesizedKeyConceptsText = suggestion.keyConceptsText
                 collection.synthesizedBackgroundContext = suggestion.backgroundContext
                 collection.synthesizedAt = Date()

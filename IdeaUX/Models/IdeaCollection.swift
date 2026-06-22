@@ -18,7 +18,7 @@ final class IdeaCollection {
     // Model-synthesized collection context from approved idea branches
     var synthesizedDescription: String = ""
     var synthesizedKeyConceptsText: String = ""
-    var synthesizedBackgroundContext: String = ""
+    var synthesizedBackgroundContext: String  = ""
     var synthesizedAt: Date?
 
     // Legacy / advanced context fields retained for now

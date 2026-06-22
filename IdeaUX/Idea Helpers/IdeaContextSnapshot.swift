@@ -9,13 +9,14 @@ import Foundation
 
 struct IdeaContextSnapshot {
     let collectionName: String
+    let collectionHeadline: String
     let collectionSummary: String
 
     let purpose: String
-    let goals: String
-    let keyConcepts: String
-    let backgroundContext: String
-    let refinementInstructions: String
+
+    let synthesizedDescription: String
+    let synthesizedKeyConceptsText: String
+    let synthesizedBackgroundContext: String
 
     let parentPath: [String]
     let currentNodeTitle: String

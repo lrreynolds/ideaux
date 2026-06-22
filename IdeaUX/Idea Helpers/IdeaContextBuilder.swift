@@ -80,12 +80,12 @@ struct IdeaContextBuilder {
 
         return IdeaContextSnapshot(
             collectionName: collection.name,
+            collectionHeadline: collection.headline,
             collectionSummary: collection.summary,
             purpose: collection.purpose,
-            goals: collection.goalsText,
-            keyConcepts: collection.keyConceptsText,
-            backgroundContext: collection.backgroundContext,
-            refinementInstructions: collection.refinementInstructions,
+            synthesizedDescription: collection.synthesizedDescription,
+            synthesizedKeyConceptsText: collection.synthesizedKeyConceptsText,
+            synthesizedBackgroundContext: collection.synthesizedBackgroundContext,
             parentPath: parentTitles,
             currentNodeTitle: currentTitle,
             currentNodeContent: currentContent,
@@ -94,4 +94,3 @@ struct IdeaContextBuilder {
         )
     }
 }
-

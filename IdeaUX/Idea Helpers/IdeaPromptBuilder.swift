@@ -33,8 +33,23 @@ struct IdeaPromptBuilder {
         Collection Name:
         \(snapshot.collectionName)
 
+        Collection Headline:
+        \(snapshot.collectionHeadline.isEmpty ? "None" : snapshot.collectionHeadline)
+
+        Collection Short Summary:
+        \(snapshot.collectionSummary.isEmpty ? "None" : snapshot.collectionSummary)
+
         Collection Purpose:
         \(snapshot.purpose.isEmpty ? "None" : snapshot.purpose)
+
+        Evolving Collection Description:
+        \(snapshot.synthesizedDescription.isEmpty ? "None" : snapshot.synthesizedDescription)
+
+        Emerging Key Concepts:
+        \(snapshot.synthesizedKeyConceptsText.isEmpty ? "None" : snapshot.synthesizedKeyConceptsText)
+
+        Synthesized Background Context:
+        \(snapshot.synthesizedBackgroundContext.isEmpty ? "None" : snapshot.synthesizedBackgroundContext)
 
         Parent Path:
         \(snapshot.parentPath.isEmpty ? "None" : snapshot.parentPath.joined(separator: " > "))
@@ -97,23 +112,23 @@ struct IdeaPromptBuilder {
         COLLECTION
         Name: \(snapshot.collectionName)
 
-        Summary:
+        Headline:
+        \(snapshot.collectionHeadline)
+
+        Short Summary:
         \(snapshot.collectionSummary)
 
         Purpose:
         \(snapshot.purpose)
 
-        Goals:
-        \(snapshot.goals)
+        Evolving Description:
+        \(snapshot.synthesizedDescription)
 
-        Key Concepts:
-        \(snapshot.keyConcepts)
+        Emerging Key Concepts:
+        \(snapshot.synthesizedKeyConceptsText)
 
-        Background:
-        \(snapshot.backgroundContext)
-
-        Refinement Instructions:
-        \(snapshot.refinementInstructions)
+        Synthesized Background Context:
+        \(snapshot.synthesizedBackgroundContext)
 
         Parent Path:
         \(snapshot.parentPath.isEmpty ? "None" : snapshot.parentPath.joined(separator: " > "))
