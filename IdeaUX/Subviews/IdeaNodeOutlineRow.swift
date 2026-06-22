@@ -9,69 +9,15 @@ struct IdeaNodeOutlineRow: View {
     @Binding var isExpanded: Bool
 
     private var effectiveStatus: String {
-        (displayStatus ?? node.status)
+        let explicitStatus = displayStatus?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-    }
 
-    private var isReviewedStatus: Bool {
-        effectiveStatus == "refined" ||
-        effectiveStatus == "question" ||
-        effectiveStatus == "actionable" ||
-        effectiveStatus == "implemented" ||
-        effectiveStatus == "done"
-    }
-
-    var statusSymbol: String {
-        if effectiveStatus == "question" || node.nodeType.lowercased() == "question" {
-            return "?"
+        if let explicitStatus, !explicitStatus.isEmpty {
+            return explicitStatus
         }
 
-        switch effectiveStatus {
-        case "done", "implemented":
-            return "✓"
-        case "actionable":
-            return "⚡"
-        case "refined":
-            return hasChildren ? "🌳" : "🌿"
-        case "refining":
-            return "…"
-        default:
-            if hasChildren && hasMeaningfulRefinement { return "🌳" }
-            return hasMeaningfulRefinement ? "🌿" : "🌱"
-        }
-    }
-
-    var statusColor: Color {
-        if effectiveStatus == "question" || node.nodeType.lowercased() == "question" {
-            return .red
-        }
-
-        switch effectiveStatus {
-        case "done", "implemented":
-            return .secondary
-        case "actionable":
-            return .orange
-        case "refining":
-            return .secondary
-        default:
-            return .primary
-        }
-    }
-
-    var hasMeaningfulRefinement: Bool {
-        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
-        let refined = node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summary = node.summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        let interpretation = node.modelInterpretation.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if isReviewedStatus { return true }
-        if !interpretation.isEmpty { return true }
-        if !summary.isEmpty && summary != title && summary != raw { return true }
-        if !refined.isEmpty && refined != title && refined != raw { return true }
-
-        return false
+        return IdeaNodeDisplayStatus.statusKey(for: node)
     }
 
     var subtitleText: String? {
@@ -93,11 +39,11 @@ struct IdeaNodeOutlineRow: View {
     }
 
     var titleStyle: Font.Weight {
-        isReviewedStatus ? .medium : .regular
+        IdeaNodeDisplayStatus.displayStatus(for: effectiveStatus).titleWeight
     }
 
     var titleColor: Color {
-        isReviewedStatus ? .primary : .secondary
+        IdeaNodeDisplayStatus.displayStatus(for: effectiveStatus).titleColor
     }
 
     var titleText: String {
@@ -126,9 +72,9 @@ struct IdeaNodeOutlineRow: View {
                 Color.clear.frame(width: 20, height: 24)
             }
 
-            Text(statusSymbol)
-                .foregroundStyle(statusColor)
-                .fontWeight((effectiveStatus == "question" || node.nodeType.lowercased() == "question") ? .bold : .regular)
+            Text(IdeaNodeDisplayStatus.displayStatus(for: effectiveStatus).symbol)
+                .foregroundStyle(IdeaNodeDisplayStatus.displayStatus(for: effectiveStatus).color)
+                .fontWeight(effectiveStatus == "question" ? .bold : .regular)
                 .frame(width: 22, alignment: .center)
 
             VStack(alignment: .leading, spacing: 2) {

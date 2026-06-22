@@ -101,34 +101,12 @@ struct IdeaOutlineView: View {
     }
 
     private func normalizedStatus(for node: IdeaNode) -> String {
-        let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let type = node.nodeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        if status == "implemented" || status == "done" { return "implemented" }
-        if status == "actionable" { return "actionable" }
-        if status == "question" { return "question" }
-        if status == "refined" { return "refined" }
-        if hasMeaningfulRefinement(node) { return "refined" }
-        return "seed"
+        IdeaNodeDisplayStatus.statusKey(for: node)
     }
 
     private func descendants(of node: IdeaNode, in all: [IdeaNode]) -> [IdeaNode] {
         let directChildren = children(of: node, in: all)
         return directChildren + directChildren.flatMap { descendants(of: $0, in: all) }
-    }
-
-    private func hasMeaningfulRefinement(_ node: IdeaNode) -> Bool {
-        let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
-        let refined = node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summary = node.summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        let interpretation = node.modelInterpretation.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if !interpretation.isEmpty { return true }
-        if !summary.isEmpty && summary != title && summary != raw { return true }
-        if !refined.isEmpty && refined != title && refined != raw { return true }
-
-        return false
     }
 
     private func children(of node: IdeaNode, in all: [IdeaNode]) -> [IdeaNode] {
