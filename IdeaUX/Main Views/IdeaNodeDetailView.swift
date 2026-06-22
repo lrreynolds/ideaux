@@ -73,6 +73,7 @@ private let showDebugControls = false
                         Text("Analyzed \(lastAnalyzedAt, style: .relative) ago")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal)
                     }
                     if isAnalyzing {
                         HStack(spacing: 8) {
@@ -95,7 +96,7 @@ private let showDebugControls = false
                     Button {
                         setStatus("question")
                     } label: {
-                        Label("Question", systemImage: "questionmark.circle")
+                        Label("", systemImage: "questionmark.circle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -104,7 +105,7 @@ private let showDebugControls = false
                     Button {
                         setStatus("actionable")
                     } label: {
-                        Label("Todo", systemImage: "bolt.fill")
+                        Label("", systemImage: "bolt.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -113,7 +114,7 @@ private let showDebugControls = false
                     Button {
                         setStatus("implemented")
                     } label: {
-                        Label("Done", systemImage: "checkmark.circle.fill")
+                        Label("", systemImage: "checkmark.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -526,15 +527,8 @@ private let showDebugControls = false
     private func applyRecommendedStatus(from suggestion: IdeaRefinementSuggestion, to targetNode: IdeaNode) {
         guard targetNode.status.lowercased() != "implemented" else { return }
 
-        switch suggestion.recommendedStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "question":
-            targetNode.status = "question"
-        case "actionable":
-            targetNode.status = "actionable"
-        default:
-            if targetNode.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "refining" {
-                targetNode.status = "seed"
-            }
+        if targetNode.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "refining" {
+            targetNode.status = "seed"
         }
     }
 

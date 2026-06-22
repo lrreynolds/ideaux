@@ -291,7 +291,9 @@ struct IdeaCollectionDetailView: View {
         for node in collectionIdeas {
             let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             guard status != "implemented" && status != "done" else { continue }
+
             node.status = "seed"
+            node.nodeType = "idea"
             node.updatedAt = Date()
         }
 

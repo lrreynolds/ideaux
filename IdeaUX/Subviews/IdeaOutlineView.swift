@@ -106,7 +106,8 @@ struct IdeaOutlineView: View {
 
         if status == "implemented" || status == "done" { return "implemented" }
         if status == "actionable" { return "actionable" }
-        if status == "question" || type == "question" { return "question" }
+        if status == "question" { return "question" }
+        if status == "refined" { return "refined" }
         if hasMeaningfulRefinement(node) { return "refined" }
         return "seed"
     }
