@@ -27,10 +27,19 @@ struct ContentView: View {
                                 VStack(alignment: .leading) {
                                     Text(collection.name)
                                         .font(.headline)
-                                    if !collection.summary.isEmpty {
-                                        Text(collection.summary)
+                                    let displayHeadline = collection.headline.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    let displaySummary = collection.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                                    if !displayHeadline.isEmpty {
+                                        Text(displayHeadline)
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    } else if !displaySummary.isEmpty {
+                                        Text(displaySummary)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
                                     }
                                 }
                                 Spacer()
@@ -40,11 +49,11 @@ struct ContentView: View {
                     .onDelete(perform: deleteCollections)
                 }
             }
-            .navigationTitle("ideauX")
+            .navigationTitle("IdeaUX")
             .toolbar {
                 Menu {
                     Button {
-                        addSampleCollection()
+                        showingNewCollection = true
                     } label: {
                         Label("New Collection", systemImage: "plus")
                     }
@@ -63,6 +72,22 @@ struct ContentView: View {
             .sheet(isPresented: $showingImportTree) {
                 ImportTreeSheet()
             }
+            .sheet(isPresented: $showingNewCollection) {
+                CollectionCreationSheet(
+                    onCancel: {
+                        showingNewCollection = false
+                    },
+                    onCreate: { name, headline, summary, purpose in
+                        createCollection(
+                            name: name,
+                            headline: headline,
+                            summary: summary,
+                            purpose: purpose
+                        )
+                        showingNewCollection = false
+                    }
+                )
+            }
         }
     }
     
@@ -79,12 +104,19 @@ struct ContentView: View {
         }
     }
 
-    private func addSampleCollection() {
+    private func createCollection(
+        name: String,
+        headline: String,
+        summary: String,
+        purpose: String
+    ) {
         let collection = IdeaCollection(
-            name: "New Collection \(collections.count + 1)",
-            summary: "A new idea context.",
+            name: name,
+            headline: headline,
+            summary: summary,
             iconName: "folder",
-            colorName: "blue"
+            colorName: "blue",
+            purpose: purpose
         )
 
         modelContext.insert(collection)
@@ -100,22 +132,23 @@ struct ContentView: View {
         guard collections.isEmpty else { return }
 
         let samples = [
-            ("Commonshub", "Creator-owned communities on the open social web.", "folder", "indigo"),
-            ("ideauX", "Offline-first idea capture and idea trees.", "leaf", "green"),
-            ("AI", "Local models, refinement, and structured thinking.", "sparkles", "purple"),
-            ("Discovery", "Finding and connecting useful signals.", "magnifyingglass", "orange"),
-            ("Universities", "Institutional communities, mentorship, and alumni networks.", "graduationcap", "teal")
+            ("Commonshub", "Creator-owned communities", "Creator-owned communities on the open social web.", "folder", "indigo"),
+            ("ideauX", "Offline idea trees", "Offline-first idea capture and idea trees.", "leaf", "green"),
+            ("AI", "Local model thinking", "Local models, refinement, and structured thinking.", "sparkles", "purple"),
+            ("Discovery", "Find useful signals", "Finding and connecting useful signals.", "magnifyingglass", "orange"),
+            ("Universities", "Institutional networks", "Institutional communities, mentorship, and alumni networks.", "graduationcap", "teal")
         ]
 
         for sample in samples {
             let collection = IdeaCollection(
                 name: sample.0,
-                summary: sample.1,
-                iconName: sample.2,
-                colorName: sample.3
+                headline: sample.1,
+                summary: sample.2,
+                iconName: sample.3,
+                colorName: sample.4,
+                purpose: sample.2
             )
             modelContext.insert(collection)
         }
     }
 }
-

@@ -42,10 +42,19 @@ struct IdeaCollectionDetailView: View {
                     .foregroundStyle(.blue)
                 }
 
-                if !collection.summary.isEmpty {
-                    Text(collection.summary)
+                let displayHeadline = collection.headline.trimmingCharacters(in: .whitespacesAndNewlines)
+                let displaySummary = collection.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if !displayHeadline.isEmpty {
+                    Text(displayHeadline)
                         .font(.title3)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                } else if !displaySummary.isEmpty {
+                    Text(displaySummary)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 IdeaOutlineView(
@@ -105,7 +114,9 @@ struct IdeaCollectionDetailView: View {
                 Form {
                     Section("Collection") {
                         TextField("Name", text: $collection.name)
-                        TextField("Summary", text: $collection.summary, axis: .vertical)
+                        TextField("Headline", text: $collection.headline, axis: .vertical)
+                            .lineLimit(1...2)
+                        TextField("Short Summary", text: $collection.summary, axis: .vertical)
                             .lineLimit(2...4)
                     }
 
@@ -138,35 +149,33 @@ struct IdeaCollectionDetailView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Goals")
+                            Text("Evolving Description")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            TextEditor(text: $collection.goalsText)
-                                .frame(minHeight: 100)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Key Concepts")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            TextEditor(text: $collection.keyConceptsText)
-                                .frame(minHeight: 100)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Background Context")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            TextEditor(text: $collection.backgroundContext)
+                            TextEditor(text: $collection.synthesizedDescription)
                                 .frame(minHeight: 120)
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Refinement Instructions")
+                            Text("Emerging Key Concepts")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            TextEditor(text: $collection.refinementInstructions)
+                            TextEditor(text: $collection.synthesizedKeyConceptsText)
                                 .frame(minHeight: 120)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Synthesized Background Context")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $collection.synthesizedBackgroundContext)
+                                .frame(minHeight: 140)
+                        }
+
+                        if let synthesizedAt = collection.synthesizedAt {
+                            Text("Last updated \(synthesizedAt, style: .relative) ago")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     Section("Export") {
@@ -272,9 +281,10 @@ struct IdeaCollectionDetailView: View {
             let suggestion = try await CollectionSynthesizer().synthesize(snapshot: snapshot)
 
             await MainActor.run {
-                collection.summary = suggestion.summary
-                collection.keyConceptsText = suggestion.keyConceptsText
-                collection.backgroundContext = suggestion.backgroundContext
+                collection.synthesizedDescription = suggestion.summary
+                collection.synthesizedKeyConceptsText = suggestion.keyConceptsText
+                collection.synthesizedBackgroundContext = suggestion.backgroundContext
+                collection.synthesizedAt = Date()
                 collection.updatedAt = Date()
                 try? modelContext.save()
             }
@@ -421,6 +431,7 @@ private struct ContextSection: View {
 
     let sample = IdeaCollection(
         name: "My Project",
+        headline: "A quick summary of the collection.",
         summary: "A quick summary of the collection.",
         iconName: "lightbulb",
         purpose: "Explore and refine ideas for the next release.",
