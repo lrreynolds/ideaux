@@ -11,6 +11,7 @@ import SwiftData
 struct IdeaOutlineView: View {
     let collection: IdeaCollection
     let ideas: [IdeaNode]
+    let onNodeApproved: (() -> Void)?
 
     @State private var expanded: Set<UUID> = []
 
@@ -44,7 +45,11 @@ struct IdeaOutlineView: View {
         return AnyView(
             VStack(alignment: .leading, spacing: 0) {
                 NavigationLink {
-                    IdeaNodeDetailView(node: node, collection: collection)
+                    IdeaNodeDetailView(
+                        node: node,
+                        collection: collection,
+                        onApproved: onNodeApproved
+                    )
                 } label: {
                     IdeaNodeOutlineRow(
                         node: node,
@@ -141,7 +146,11 @@ struct IdeaOutlineView: View {
     )
 
     NavigationStack {
-        IdeaOutlineView(collection: collection, ideas: [])
-            .padding()
+        IdeaOutlineView(
+            collection: collection,
+            ideas: [],
+            onNodeApproved: nil
+        )
+        .padding()
     }
 }

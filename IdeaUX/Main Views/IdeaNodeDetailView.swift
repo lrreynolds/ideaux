@@ -16,6 +16,7 @@ struct IdeaNodeDetailView: View {
 
     let node: IdeaNode
     let collection: IdeaCollection
+    var onApproved: (() -> Void)? = nil
 
     @State private var showingAddChild = false
     @State private var childCaptureText = ""
@@ -120,19 +121,33 @@ private let showDebugControls = false
                 }
             }
 
-            Button {
-                editTitleText = node.title
-                editSummaryText = node.refinedText
-                showingEditCore = true
-            } label: {
-                Label("Edit", systemImage: "pencil")
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                if shouldShowApproveButton {
+                    Button {
+                        approveIdea()
+                    } label: {
+                        Label("Approve", systemImage: "hand.thumbsup.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(node.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || node.refinedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                Button {
+                    editTitleText = node.title
+                    editSummaryText = node.refinedText
+                    showingEditCore = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
             .padding(.horizontal)
 
-            if showingRelatedDetails || node.status == "refined" {
+            if showingRelatedDetails || node.status == "refined" || node.status == "question" || node.status == "actionable" || node.status == "implemented" {
                 IdeaDetailSection(title: "Questions") {
                     IdeaTextList(text: node.modelQuestionsText, emptyText: "No questions yet.")
                 }
@@ -177,7 +192,11 @@ private let showDebugControls = false
         .navigationTitle("Idea")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedChildNode) { child in
-            IdeaNodeDetailView(node: child, collection: collection)
+            IdeaNodeDetailView(
+                node: child,
+                collection: collection,
+                onApproved: onApproved
+            )
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -302,6 +321,11 @@ private let showDebugControls = false
         return "Untitled"
     }
 
+    private var shouldShowApproveButton: Bool {
+        let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return status == "seed" || status == "refining"
+    }
+
     private var statusLabel: String {
         switch node.status.lowercased() {
         case "question":
@@ -371,9 +395,11 @@ private let showDebugControls = false
 
         node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
         node.refinedText = summary
+        node.status = "refined"
         node.updatedAt = Date()
         showingRelatedDetails = true
         try? modelContext.save()
+        onApproved?()
     }
 
     private func saveCoreEditsAndReanalyze() async {
@@ -383,12 +409,22 @@ private let showDebugControls = false
         await MainActor.run {
             node.title = title.isEmpty ? String(node.rawCapture.prefix(80)) : title
             node.refinedText = summary
+            node.status = "refined"
             node.updatedAt = Date()
             showingRelatedDetails = true
             try? modelContext.save()
+            onApproved?()
         }
 
         await analyze(node, updateCoreFields: false)
+    }
+
+    private func approveIdea() {
+        node.status = "refined"
+        node.updatedAt = Date()
+        showingRelatedDetails = true
+        try? modelContext.save()
+        onApproved?()
     }
 
     private func makeCurrentSnapshot() -> IdeaContextSnapshot {
@@ -496,7 +532,9 @@ private let showDebugControls = false
         case "actionable":
             targetNode.status = "actionable"
         default:
-            targetNode.status = "refined"
+            if targetNode.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "refining" {
+                targetNode.status = "seed"
+            }
         }
     }
 

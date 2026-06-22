@@ -19,6 +19,7 @@ struct IdeaCollectionDetailView: View {
     @State private var showingContext = false
     @State private var selectedRootNode: IdeaNode?
     @State private var isReviewingCollection = false
+    @State private var isSynthesizingCollection = false
 
     var body: some View {
         let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
@@ -49,7 +50,12 @@ struct IdeaCollectionDetailView: View {
 
                 IdeaOutlineView(
                     collection: collection,
-                    ideas: collectionIdeas
+                    ideas: collectionIdeas,
+                    onNodeApproved: {
+                        Task {
+                            await synthesizeCollection()
+                        }
+                    }
                 )
 
             }
@@ -104,6 +110,25 @@ struct IdeaCollectionDetailView: View {
                     }
 
                     Section("Context") {
+                        Button {
+                            Task {
+                                await synthesizeCollection()
+                            }
+                        } label: {
+                            if isSynthesizingCollection {
+                                Label("Updating Collection Context…", systemImage: "sparkles")
+                            } else {
+                                Label("Update Collection Context", systemImage: "sparkles")
+                            }
+                        }
+                        .disabled(isSynthesizingCollection)
+
+                        Button(role: .destructive) {
+                            resetNodesToSeed()
+                        } label: {
+                            Label("Reset Node Review Statuses", systemImage: "arrow.counterclockwise")
+                        }
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Purpose")
                                 .font(.caption)
@@ -224,6 +249,55 @@ struct IdeaCollectionDetailView: View {
         }
     }
 
+    private func synthesizeCollection() async {
+        guard !isSynthesizingCollection else { return }
+
+        await MainActor.run {
+            isSynthesizingCollection = true
+        }
+
+        defer {
+            Task { @MainActor in
+                isSynthesizingCollection = false
+            }
+        }
+
+        do {
+            let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+            let snapshot = CollectionReviewSnapshotBuilder.snapshot(
+                collection: collection,
+                allNodes: collectionIdeas
+            )
+
+            let suggestion = try await CollectionSynthesizer().synthesize(snapshot: snapshot)
+
+            await MainActor.run {
+                collection.summary = suggestion.summary
+                collection.keyConceptsText = suggestion.keyConceptsText
+                collection.backgroundContext = suggestion.backgroundContext
+                collection.updatedAt = Date()
+                try? modelContext.save()
+            }
+        } catch {
+#if DEBUG
+            print("Collection synthesis failed: \(error)")
+#endif
+        }
+    }
+
+    private func resetNodesToSeed() {
+        let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+
+        for node in collectionIdeas {
+            let status = node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard status != "implemented" && status != "done" else { continue }
+            node.status = "seed"
+            node.updatedAt = Date()
+        }
+
+        try? modelContext.save()
+    }
+
     private func reviewCollection() async {
         guard !isReviewingCollection else { return }
 
@@ -311,7 +385,9 @@ struct IdeaCollectionDetailView: View {
         case "actionable":
             node.status = "actionable"
         default:
-            node.status = "refined"
+            if node.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "refining" {
+                node.status = "seed"
+            }
         }
     }
 }

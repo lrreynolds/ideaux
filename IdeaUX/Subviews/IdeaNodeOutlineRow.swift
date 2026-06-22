@@ -14,6 +14,14 @@ struct IdeaNodeOutlineRow: View {
             .lowercased()
     }
 
+    private var isReviewedStatus: Bool {
+        effectiveStatus == "refined" ||
+        effectiveStatus == "question" ||
+        effectiveStatus == "actionable" ||
+        effectiveStatus == "implemented" ||
+        effectiveStatus == "done"
+    }
+
     var statusSymbol: String {
         if effectiveStatus == "question" || node.nodeType.lowercased() == "question" {
             return "?"
@@ -58,6 +66,7 @@ struct IdeaNodeOutlineRow: View {
         let summary = node.summary.trimmingCharacters(in: .whitespacesAndNewlines)
         let interpretation = node.modelInterpretation.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        if isReviewedStatus { return true }
         if !interpretation.isEmpty { return true }
         if !summary.isEmpty && summary != title && summary != raw { return true }
         if !refined.isEmpty && refined != title && refined != raw { return true }
@@ -84,11 +93,11 @@ struct IdeaNodeOutlineRow: View {
     }
 
     var titleStyle: Font.Weight {
-        hasMeaningfulRefinement ? .medium : .regular
+        isReviewedStatus ? .medium : .regular
     }
 
     var titleColor: Color {
-        hasMeaningfulRefinement ? .primary : .secondary
+        isReviewedStatus ? .primary : .secondary
     }
 
     var titleText: String {

@@ -43,61 +43,22 @@ struct CollectionReviewer {
 
     private func collectionReviewPrompt(for snapshot: CollectionReviewSnapshot) -> String {
         """
-        Review this ideauX collection tree and recommend node attention statuses.
+        Review these ideauX nodes. Return only high-confidence status changes.
 
-        COLLECTION
-
-        Name:
-        \(snapshot.collectionName)
-
-        Summary:
-        \(emptyFallback(snapshot.collectionSummary))
-
-        Purpose:
-        \(emptyFallback(snapshot.purpose))
-
-        Goals:
-        \(emptyFallback(snapshot.goals))
-
-        Key Concepts:
-        \(emptyFallback(snapshot.keyConcepts))
-
-        Background Context:
-        \(emptyFallback(snapshot.backgroundContext))
-
-        Refinement Instructions:
-        \(emptyFallback(snapshot.refinementInstructions))
-
-        NODE DATA
+        Collection: \(snapshot.collectionName)
         
         \(nodeDataText(for: reviewCandidates(from: snapshot.nodes)))
 
-        TASK
-
-        Return nodeUpdates for nodes whose attention status should change.
-
-        For each update:
-        - nodeID must exactly match one node id from NODE DATA.
-        - recommendedStatus must be question, actionable, or none.
-        - reason should briefly explain why.
-
-        STATUS RULES
-
-        question:
-        Use when the node itself is an unresolved question, uncertainty, or clarification point.
-
-        actionable:
-        Use when the node describes a concrete next action, implementation task, decision, or follow-up the user could do.
-
-        none:
-        Use when the node is an idea, concept, observation, branch heading, summary, or already sufficiently classified.
-
-        IMPORTANT
-
-        Do not recommend implemented or done.
-        Do not classify branch headings as question/actionable merely because descendants contain questions or todos.
-        Do not recommend changes for every node.
-        Prefer a short, high-signal list.
+             Rules:
+             - nodeID must exactly match a listed id.
+             - recommendedStatus: question, actionable, or none.
+             - question = node itself is unresolved.
+             - actionable = the node already describes a specific concrete action the user can do.
+             - Do not invent actions from a broad idea.
+             - Do not classify generated next steps as the node status.
+             - none = clear stale question/actionable.
+             - never recommend done/implemented.
+             - do not classify parents only because children need attention.
         """
     }
 
@@ -111,7 +72,7 @@ struct CollectionReviewer {
                 if lhs.score != rhs.score { return lhs.score > rhs.score }
                 return lhs.node.depth > rhs.node.depth
             }
-            .prefix(24)
+            .prefix(8)
             .map(\.node)
     }
 
@@ -132,7 +93,7 @@ struct CollectionReviewer {
         if status == "actionable" { score += 35 }
         if status == "seed" || status == "refining" { score += 20 }
         if !questions.isEmpty { score += 20 }
-        if !nextSteps.isEmpty { score += 15 }
+        if !nextSteps.isEmpty { score += 2 }
         if !summary.isEmpty && summary != title { score += 12 }
         if !refined.isEmpty && refined != title { score += 10 }
         if !interpretation.isEmpty { score += 8 }
@@ -146,15 +107,13 @@ struct CollectionReviewer {
         nodes.map { node in
             let indent = String(repeating: "  ", count: node.depth)
             return """
-            \(indent)- Node ID: \(node.id.uuidString)
-            \(indent)  Path: \(shorten(node.path.joined(separator: " > "), limit: 220))
-            \(indent)  Status: \(emptyFallback(node.status))
-            \(indent)  Type: \(emptyFallback(node.nodeType))
-            \(indent)  Title: \(shorten(node.title, limit: 120))
-            \(indent)  Summary: \(shorten(primaryContent(for: node), limit: 260))
-            \(indent)  Questions: \(shorten(node.modelQuestionsText, limit: 220))
-            \(indent)  Next Steps: \(shorten(node.modelNextStepsText, limit: 220))
-            \(indent)  Child Count: \(node.childIDs.count)
+                       \(indent)- id: \(node.id.uuidString)
+                       \(indent)  path: \(shorten(node.path.joined(separator: " > "), limit: 80))
+                       \(indent)  status: \(emptyFallback(node.status)); type: \(emptyFallback(node.nodeType)); children: \(node.childIDs.count)
+                       \(indent)  title: \(shorten(node.title, limit: 60))
+                       \(indent)  content: \(shorten(primaryContent(for: node), limit: 90))
+                       \(indent)  q: \(shorten(node.modelQuestionsText, limit: 60))
+                       \(indent)  next: \(shorten(node.modelNextStepsText, limit: 60))
             """
         }
         .joined(separator: "\n\n")

@@ -7,14 +7,6 @@
 
 import Foundation
 
-//
-//  CollectionReviewSnapshot.swift
-//  IdeaUX
-//
-//  Created by LouR on 6/21/26.
-//
-
-import Foundation
 
 struct CollectionReviewSnapshot {
     let collectionID: UUID
