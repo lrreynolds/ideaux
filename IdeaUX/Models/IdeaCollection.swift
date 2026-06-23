@@ -12,8 +12,6 @@ final class IdeaCollection {
     var iconName: String
     var colorName: String
 
-    // User-authored collection seed context
-    var purpose: String
 
     // Model-synthesized collection context from approved idea branches
     var synthesizedDescription: String = ""
@@ -36,7 +34,6 @@ final class IdeaCollection {
         summary: String = "",
         iconName: String = "folder",
         colorName: String = "blue",
-        purpose: String = "",
         synthesizedDescription: String = "",
         synthesizedKeyConceptsText: String = "",
         synthesizedBackgroundContext: String = "",
@@ -54,7 +51,6 @@ final class IdeaCollection {
         self.summary = summary
         self.iconName = iconName
         self.colorName = colorName
-        self.purpose = purpose
         self.synthesizedDescription = synthesizedDescription
         self.synthesizedKeyConceptsText = synthesizedKeyConceptsText
         self.synthesizedBackgroundContext = synthesizedBackgroundContext

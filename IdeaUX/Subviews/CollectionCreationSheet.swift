@@ -19,6 +19,7 @@ struct CollectionCreationSheet: View {
     @State private var userEditedHeadline = false
     @State private var userEditedSummary = false
     @State private var inputMode: CollectionCreationInputMode = .text
+    @State private var isRefining = false
     @State private var speechRecognizer = SpeechRecognizer()
     @State private var speechErrorMessage: String?
     @State private var lastSpeechTranscript = ""
@@ -121,10 +122,12 @@ struct CollectionCreationSheet: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
-                        createCollection()
+                    Button(isRefining ? "Refining…" : "Create") {
+                        Task {
+                            await createCollection()
+                        }
                     }
-                    .disabled(!canCreate)
+                    .disabled(!canCreate || isRefining)
                 }
             }
             .onChange(of: captureText) { _, newValue in
@@ -242,20 +245,41 @@ struct CollectionCreationSheet: View {
         captureText = existing + " " + wordsToAppend.joined(separator: " ")
     }
 
-    private func createCollection() {
+    private func createCollection() async {
         let cleanedCapture = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedHeadline = headline.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let sourceSummary = cleanedSummary.isEmpty ? cleanedCapture : cleanedSummary
-        let finalName = cleanedName.isEmpty ? fallbackName(from: sourceSummary) : cleanedName
-        let finalHeadline = cleanedHeadline.isEmpty ? fallbackHeadline(from: sourceSummary, name: finalName) : cleanedHeadline
-        let finalSummary = sourceSummary
-        let purpose = cleanedCapture.isEmpty ? finalSummary : cleanedCapture
 
-        resetCapture()
-        onCreate(finalName, finalHeadline, finalSummary, purpose)
+        isRefining = true
+
+        do {
+            let suggestion = try await CollectionCreationRefiner()
+                .refine(from: sourceSummary)
+
+            let finalName = userEditedName ? cleanedName : suggestion.name
+            let finalHeadline = userEditedHeadline ? cleanedHeadline : suggestion.headline
+            let finalSummary = userEditedSummary ? cleanedSummary : suggestion.summary
+
+            await MainActor.run {
+                isRefining = false
+                resetCapture()
+                onCreate(finalName, finalHeadline, finalSummary, finalSummary)
+            }
+        } catch {
+            let fallbackName = fallbackName(from: sourceSummary)
+            let finalName = userEditedName ? cleanedName : fallbackName
+            let finalHeadline = userEditedHeadline ? cleanedHeadline : fallbackHeadline(from: sourceSummary, name: finalName)
+            let finalSummary = userEditedSummary ? cleanedSummary : sourceSummary
+
+            await MainActor.run {
+                isRefining = false
+                resetCapture()
+                onCreate(finalName, finalHeadline, finalSummary, finalSummary)
+            }
+        }
     }
 
     private func updateDraftFields(from text: String) {

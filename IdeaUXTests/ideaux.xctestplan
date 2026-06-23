@@ -20,7 +20,7 @@
   "testTargets" : [
     {
       "target" : {
-        "containerPath" : "container:ideaux.xcodeproj",
+        "containerPath" : "container:IdeaUX.xcodeproj",
         "identifier" : "6E74DDA92FE493CC00A688F0",
         "name" : "IdeaUXTests"
       }

@@ -115,8 +115,7 @@ struct ContentView: View {
             headline: headline,
             summary: summary,
             iconName: "folder",
-            colorName: "blue",
-            purpose: purpose
+            colorName: "blue"
         )
 
         modelContext.insert(collection)
@@ -145,8 +144,7 @@ struct ContentView: View {
                 headline: sample.1,
                 summary: sample.2,
                 iconName: sample.3,
-                colorName: sample.4,
-                purpose: sample.2
+                colorName: sample.4
             )
             modelContext.insert(collection)
         }

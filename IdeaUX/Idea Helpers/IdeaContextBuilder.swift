@@ -82,7 +82,6 @@ struct IdeaContextBuilder {
             collectionName: collection.name,
             collectionHeadline: collection.headline,
             collectionSummary: collection.summary,
-            purpose: collection.purpose,
             synthesizedDescription: collection.synthesizedDescription,
             synthesizedKeyConceptsText: collection.synthesizedKeyConceptsText,
             synthesizedBackgroundContext: collection.synthesizedBackgroundContext,

@@ -141,14 +141,6 @@ struct IdeaCollectionDetailView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Purpose")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            TextEditor(text: $collection.purpose)
-                                .frame(minHeight: 80)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
                             Text("Evolving Description")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -433,12 +425,7 @@ private struct ContextSection: View {
         name: "My Project",
         headline: "A quick summary of the collection.",
         summary: "A quick summary of the collection.",
-        iconName: "lightbulb",
-        purpose: "Explore and refine ideas for the next release.",
-        goalsText: "- Ship MVP\n- Get feedback",
-        keyConceptsText: "SwiftUI, SwiftData, Architecture",
-        backgroundContext: "Notes and prior art live here.",
-        refinementInstructions: "Tighten scope and clarify user value."
+        iconName: "lightbulb"
     )
 
     container.mainContext.insert(sample)

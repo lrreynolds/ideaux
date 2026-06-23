@@ -12,7 +12,6 @@ struct IdeaContextSnapshot {
     let collectionHeadline: String
     let collectionSummary: String
 
-    let purpose: String
 
     let synthesizedDescription: String
     let synthesizedKeyConceptsText: String

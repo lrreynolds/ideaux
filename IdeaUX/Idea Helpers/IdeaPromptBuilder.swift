@@ -39,9 +39,6 @@ struct IdeaPromptBuilder {
         Collection Short Summary:
         \(snapshot.collectionSummary.isEmpty ? "None" : snapshot.collectionSummary)
 
-        Collection Purpose:
-        \(snapshot.purpose.isEmpty ? "None" : snapshot.purpose)
-
         Evolving Collection Description:
         \(snapshot.synthesizedDescription.isEmpty ? "None" : snapshot.synthesizedDescription)
 
@@ -117,9 +114,6 @@ struct IdeaPromptBuilder {
 
         Short Summary:
         \(snapshot.collectionSummary)
-
-        Purpose:
-        \(snapshot.purpose)
 
         Evolving Description:
         \(snapshot.synthesizedDescription)

@@ -561,7 +561,6 @@ struct PreviewIdeaNodeDetail: View {
             summary: "Explore and refine product ideas",
             iconName: "folder",
             colorName: "blue",
-            purpose: "Explore and refine product ideas",
             goalsText: "Ship MVP, validate with users",
             keyConceptsText: "Focus, scope, feedback",
             backgroundContext: "We’re exploring opportunities in productivity tools.",

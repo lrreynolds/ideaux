@@ -13,7 +13,6 @@ struct IdeaTreeExporter {
             lines.append("")
         }
 
-        appendContextSection(title: "Purpose", text: collection.purpose, to: &lines)
         appendContextSection(title: "Goals", text: collection.goalsText, to: &lines)
         appendContextSection(title: "Key Concepts", text: collection.keyConceptsText, to: &lines)
         appendContextSection(title: "Background Context", text: collection.backgroundContext, to: &lines)

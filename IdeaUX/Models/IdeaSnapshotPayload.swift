@@ -23,7 +23,6 @@ struct CollectionSnapshotData: Codable {
     var iconName: String
     var colorName: String
 
-    var purpose: String
     var goalsText: String
     var keyConceptsText: String
     var backgroundContext: String

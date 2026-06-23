@@ -26,7 +26,6 @@ struct IdeaSnapshotManager {
                 summary: collection.summary,
                 iconName: collection.iconName,
                 colorName: collection.colorName,
-                purpose: collection.purpose,
                 goalsText: collection.goalsText,
                 keyConceptsText: collection.keyConceptsText,
                 backgroundContext: collection.backgroundContext,
@@ -97,7 +96,6 @@ struct IdeaSnapshotManager {
             summary: payload.collection.summary,
             iconName: payload.collection.iconName,
             colorName: payload.collection.colorName,
-            purpose: payload.collection.purpose,
             goalsText: payload.collection.goalsText,
             keyConceptsText: payload.collection.keyConceptsText,
             backgroundContext: payload.collection.backgroundContext,
@@ -114,7 +112,6 @@ struct IdeaSnapshotManager {
         collection.summary = payload.collection.summary
         collection.iconName = payload.collection.iconName
         collection.colorName = payload.collection.colorName
-        collection.purpose = payload.collection.purpose
         collection.goalsText = payload.collection.goalsText
         collection.keyConceptsText = payload.collection.keyConceptsText
         collection.backgroundContext = payload.collection.backgroundContext

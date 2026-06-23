@@ -11,12 +11,11 @@ import Foundation
 struct CollectionReviewSnapshot {
     let collectionID: UUID
     let collectionName: String
+    let collectionHeadline: String
     let collectionSummary: String
-    let purpose: String
-    let goals: String
-    let keyConcepts: String
-    let backgroundContext: String
-    let refinementInstructions: String
+    let synthesizedDescription: String
+    let synthesizedKeyConceptsText: String
+    let synthesizedBackgroundContext: String
     let nodes: [CollectionReviewNodeSnapshot]
 }
 
@@ -73,12 +72,11 @@ struct CollectionReviewSnapshotBuilder {
         return CollectionReviewSnapshot(
             collectionID: collection.id,
             collectionName: collection.name,
+            collectionHeadline: collection.headline,
             collectionSummary: collection.summary,
-            purpose: collection.purpose,
-            goals: collection.goalsText,
-            keyConcepts: collection.keyConceptsText,
-            backgroundContext: collection.backgroundContext,
-            refinementInstructions: collection.refinementInstructions,
+            synthesizedDescription: collection.synthesizedDescription,
+            synthesizedKeyConceptsText: collection.synthesizedKeyConceptsText,
+            synthesizedBackgroundContext: collection.synthesizedBackgroundContext,
             nodes: nodeSnapshots
         )
     }

@@ -237,7 +237,6 @@ struct IdeaTreeImporter {
         }
         
         var title: String = "Imported Outline"
-        var purpose = ""
         var goals = ""
         var keyConcepts = ""
         var background = ""
@@ -248,7 +247,6 @@ struct IdeaTreeImporter {
         for raw in lines {
             let line = clean(raw)
             if line.hasPrefix("# ") { title = clean(String(line.dropFirst(2))) }
-            else if line.lowercased().hasPrefix("purpose:") { purpose = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
             else if line.lowercased().hasPrefix("goals:") { goals = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
             else if line.lowercased().hasPrefix("key concepts:") { keyConcepts = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
             else if line.lowercased().hasPrefix("background context:") { background = clean(String(line.split(separator: ":", maxSplits: 1).last ?? "")) }
@@ -273,7 +271,6 @@ struct IdeaTreeImporter {
         let collection: IdeaCollection
         if let existing, mode == .replaceExisting {
             existing.summary = collectionSummary
-            existing.purpose = purpose
             existing.goalsText = goals
             existing.keyConceptsText = keyConcepts
             existing.backgroundContext = background
@@ -300,7 +297,6 @@ struct IdeaTreeImporter {
                 name: newName,
                 summary: collectionSummary,
                 iconName: "lightbulb",
-                purpose: purpose,
                 goalsText: goals,
                 keyConceptsText: keyConcepts,
                 backgroundContext: background,

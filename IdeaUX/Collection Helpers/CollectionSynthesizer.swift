@@ -44,28 +44,45 @@ struct CollectionSynthesizer {
         return """
         Synthesize this ideauX collection from reviewed idea branches.
 
+        REVIEWED NODE EVIDENCE
+
+        \(nodeEvidenceText(for: approvedNodes))
+
+        USER-PROVIDED COLLECTION CONTEXT
+
         Collection Name:
         \(snapshot.collectionName)
 
-        Current Collection Summary:
+        Collection Headline:
+        \(emptyFallback(snapshot.collectionHeadline))
+
+        User Short Summary:
         \(emptyFallback(snapshot.collectionSummary))
 
-        Current Purpose:
-        \(emptyFallback(snapshot.purpose))
+        EXISTING SYNTHESIZED CONTEXT
 
-        Reviewed Node Evidence:
-        \(nodeEvidenceText(for: approvedNodes))
+        Current Evolving Description:
+        \(emptyFallback(snapshot.synthesizedDescription))
+
+        Current Key Concepts:
+        \(emptyFallback(snapshot.synthesizedKeyConceptsText))
+
+        Current Background Context:
+        \(emptyFallback(snapshot.synthesizedBackgroundContext))
 
         TASK
 
         Produce:
-        1. An evolving collection description.
+        1. An evolving collection description based on what has been learned from reviewed nodes.
         2. Key concepts emerging across reviewed branches.
         3. Background context that would help future idea refinement.
 
         IMPORTANT
 
+        The user-provided headline and summary are orientation only.
+        Do not simply restate the user summary.
         Use reviewed node evidence as the main source.
+        Improve the existing synthesized context rather than starting over.
         Prefer synthesis over repetition.
         Do not invent unrelated product strategy.
         Do not create todos.
