@@ -177,7 +177,7 @@ private let showDebugControls = false
                 }
 
                 Button(role: .destructive) {
-                    modelContext.delete(node)
+                    deleteNodeAndChildren(node)
                     try? modelContext.save()
                     dismiss()
                 } label: {
@@ -310,6 +310,16 @@ private let showDebugControls = false
         )
 
         return items
+    }
+    
+    private func deleteNodeAndChildren(_ node: IdeaNode) {
+        let collectionIdeas = allIdeas.filter { $0.collectionID == collection.id }
+        let children = collectionIdeas.filter { $0.parentID == node.id }
+        
+        for child in children {
+            deleteNodeAndChildren(child)
+        }
+        modelContext.delete(node)
     }
 
     private func titleForPath(_ node: IdeaNode) -> String {

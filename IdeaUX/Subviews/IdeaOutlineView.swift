@@ -9,16 +9,36 @@ import SwiftUI
 import SwiftData
 
 struct IdeaOutlineView: View {
+    
+    @Environment(\.modelContext) private var modelContext
+    
     let collection: IdeaCollection
     let ideas: [IdeaNode]
     let onNodeApproved: (() -> Void)?
 
     @State private var expanded: Set<UUID> = []
+    @State private var focusedNodeID: UUID?
+    @State private var copiedBranchRootID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                let roots = ideas
+                let focusedNode = focusedNodeID.flatMap { id in
+                    ideas.first { $0.id == id }
+                }
+                
+                if let focusedNode {
+                    IdeaHierarchyPathView(items: focusPathItems(for: focusedNode)) { item in
+                        if let node = item.node {
+                            focusedNodeID = node.id
+                        } else {
+                            focusedNodeID = nil
+                        }
+                    }
+                    .padding(.bottom, 6)
+                }
+
+                let roots = focusedNode.map { [$0] } ?? ideas
                     .filter { $0.parentID == nil }
                     .sorted { lhs, rhs in
                         if lhs.sortOrder != rhs.sortOrder { return lhs.sortOrder < rhs.sortOrder }
@@ -69,6 +89,33 @@ struct IdeaOutlineView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        focusedNodeID = node.id
+                        expanded.insert(node.id)
+                    } label: {
+                        Label("Focus Branch", systemImage: "scope")
+                    }
+
+                    Button {
+                        copyBranch(node)
+                    } label: {
+                        Label("Copy Branch", systemImage: "doc.on.doc")
+                    }
+
+                    if copiedBranchRootID != nil {
+                        Button {
+                            pasteCopiedBranch(under: node)
+                        } label: {
+                            Label("Paste Branch Here", systemImage: "doc.on.clipboard")
+                        }
+                        Button {
+                                pasteCopiedBranch(under: node, deleteOriginal: true)
+                            } label: {
+                                Label("Move Branch Here", systemImage: "arrow.turn.down.right")
+                            }
+                    }
+                }
 
                 if hasChildren && expanded.contains(node.id) {
                     ForEach(kids, id: \.persistentModelID) { child in
@@ -79,6 +126,163 @@ struct IdeaOutlineView: View {
         )
     }
 
+    
+    private func focusPathItems(for node: IdeaNode) -> [IdeaHierarchyPathItem] {
+        var items = [
+            IdeaHierarchyPathItem(
+                id: collection.id.uuidString,
+                title: collection.name,
+                node: nil
+            )
+        ]
+
+        var parents: [IdeaNode] = []
+        var currentParentID = node.parentID
+
+        while let parentID = currentParentID,
+              let parent = ideas.first(where: { $0.id == parentID }) {
+            parents.insert(parent, at: 0)
+            currentParentID = parent.parentID
+        }
+
+        items.append(contentsOf: parents.map {
+            IdeaHierarchyPathItem(
+                id: $0.id.uuidString,
+                title: titleForPath($0),
+                node: $0
+            )
+        })
+
+        items.append(
+            IdeaHierarchyPathItem(
+                id: node.id.uuidString,
+                title: titleForPath(node),
+                node: node
+            )
+        )
+
+        return items
+    }
+
+    private func titleForPath(_ node: IdeaNode) -> String {
+        let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+
+        let raw = node.rawCapture.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty { return String(raw.prefix(48)) }
+
+        return "Untitled"
+    }
+    
+    private func copyBranch(_ node: IdeaNode) {
+        copiedBranchRootID = node.id
+    }
+
+    private func pasteCopiedBranch(under parent: IdeaNode) {
+        guard let sourceRootID = copiedBranchRootID,
+              let sourceRoot = ideas.first(where: { $0.id == sourceRootID }) else {
+            return
+        }
+            guard sourceRoot.id != parent.id else { return }
+            guard !descendants(of: sourceRoot, in: ideas).contains(where: { $0.id == parent.id }) else {
+                return
+        }
+
+        let pastedRoot = cloneSubtree(
+            from: sourceRoot,
+            under: parent,
+            all: ideas
+        )
+
+        expanded.insert(parent.id)
+        expanded.insert(pastedRoot.id)
+        focusedNodeID = pastedRoot.id
+
+        try? modelContext.save()
+    }
+    
+    private func pasteCopiedBranch(under parent: IdeaNode, deleteOriginal: Bool = false) {
+        guard let sourceRootID = copiedBranchRootID,
+              let sourceRoot = ideas.first(where: { $0.id == sourceRootID }) else {
+            return
+        }
+
+        guard sourceRoot.id != parent.id else { return }
+        guard !descendants(of: sourceRoot, in: ideas).contains(where: { $0.id == parent.id }) else {
+            return
+        }
+
+        let pastedRoot = cloneSubtree(
+            from: sourceRoot,
+            under: parent,
+            all: ideas
+        )
+
+        if deleteOriginal {
+            deleteSubtree(sourceRoot, all: ideas)
+            copiedBranchRootID = nil
+        }
+
+        expanded.insert(parent.id)
+        expanded.insert(pastedRoot.id)
+        focusedNodeID = pastedRoot.id
+
+        try? modelContext.save()
+    }
+    
+    private func deleteSubtree(_ node: IdeaNode, all: [IdeaNode]) {
+        let kids = children(of: node, in: all)
+        for child in kids {
+            deleteSubtree(child, all: all)
+        }
+        modelContext.delete(node)
+    }
+
+    @discardableResult
+    private func cloneSubtree(
+        from source: IdeaNode,
+        under parent: IdeaNode?,
+        all: [IdeaNode]
+    ) -> IdeaNode {
+        let clone = IdeaNode(rawCapture: source.rawCapture)
+
+        clone.title = source.title
+        clone.refinedText = source.refinedText
+        clone.summary = source.summary
+        clone.status = source.status
+        clone.nodeType = source.nodeType
+        clone.nextQuestionsText = source.nextQuestionsText
+        clone.modelInterpretation = source.modelInterpretation
+        clone.modelQuestionsText = source.modelQuestionsText
+        clone.modelRelatedIdeasText = source.modelRelatedIdeasText
+        clone.modelNextStepsText = source.modelNextStepsText
+        clone.lastAnalyzedAt = source.lastAnalyzedAt
+        clone.implementedAt = source.implementedAt
+        clone.collectionID = collection.id
+        clone.collection = collection
+        clone.parentID = parent?.id
+        clone.parent = parent
+        clone.sortOrder = nextSortOrder(under: parent, in: all)
+        clone.updatedAt = Date()
+
+        modelContext.insert(clone)
+
+        let sourceChildren = children(of: source, in: all)
+        for child in sourceChildren {
+            cloneSubtree(from: child, under: clone, all: all)
+        }
+
+        return clone
+    }
+
+    private func nextSortOrder(under parent: IdeaNode?, in all: [IdeaNode]) -> Int {
+        let siblings = all.filter { node in
+            node.collectionID == collection.id && node.parentID == parent?.id
+        }
+
+        return (siblings.map { $0.sortOrder }.max() ?? 0) + 1
+    }
+    
     private func effectiveStatus(for node: IdeaNode, in all: [IdeaNode]) -> String {
         let ownStatus = normalizedStatus(for: node)
 
